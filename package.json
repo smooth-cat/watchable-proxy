@@ -1,9 +1,9 @@
 {
-  "name": "smooth-cat",
+  "name": "watchable-proxy",
   "version": "0.0.1",
-  "main": "dist/smooth-cat.cjs.js",
-  "module": "dist/smooth-cat.esm.js",
-  "browser": "dist/smooth-cat.umd.js",
+  "main": "dist/watchable-proxy.cjs.js",
+  "module": "dist/watchable-proxy.esm.js",
+  "browser": "dist/watchable-proxy.umd.js",
   "types": "dist/index.d.ts",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^11.0.1",
@@ -26,16 +26,17 @@
   ],
   "license": "MIT",
   "keyWords": [
-    "smooth",
-    "cat"
+    "watchable",
+    "proxy"
   ],
   "author": "smooth-cat",
   "repository": {
     "type": "git",
-    "url": "git+git@github.com:smooth-cat/rollup-template.git"
+    "url": "git+git@github.com:smooth-cat/watchable-proxy.git"
   },
   "bugs": {
-    "url": "https://github.com/smooth-cat/rollup-template/issues"
+    "url": "https://github.com/smooth-cat/watchable-proxy/issues"
   },
-  "homepage": "https://github.com/smooth-cat/rollup-template#readme"
+  "homepage": "https://github.com/smooth-cat/watchable-proxy#readme",
+  "description": "Convert object to proxy that can be watched deeply and conditionally"
 }
