@@ -1,0 +1,41 @@
+{
+  "name": "smooth-cat",
+  "version": "0.0.1",
+  "main": "dist/smooth-cat.cjs.js",
+  "module": "dist/smooth-cat.esm.js",
+  "browser": "dist/smooth-cat.umd.js",
+  "types": "dist/index.d.ts",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^11.0.1",
+    "@rollup/plugin-node-resolve": "^7.0.0",
+    "@types/node": "^18.15.11",
+    "readline-sync": "^1.4.10",
+    "rollup": "^2.60.0",
+    "rollup-plugin-typescript2": "^0.34.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^4"
+  },
+  "scripts": {
+    "ini": "node scripts/init.js",
+    "build": "rm -rf ./dist && rollup -c",
+    "pub": "node scripts/publish.js",
+    "dev": "rollup -c -w"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "keyWords": [
+    "smooth",
+    "cat"
+  ],
+  "author": "smooth-cat",
+  "repository": {
+    "type": "git",
+    "url": "git+git@github.com:smooth-cat/rollup-template.git"
+  },
+  "bugs": {
+    "url": "https://github.com/smooth-cat/rollup-template/issues"
+  },
+  "homepage": "https://github.com/smooth-cat/rollup-template#readme"
+}
