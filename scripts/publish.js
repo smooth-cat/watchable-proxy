@@ -12,6 +12,9 @@ const newVal = version.replace(/(\w+\.\w+\.)(\w+)/g, (_, left, right) => {
 // 构建
 exec('pnpm build');
 
+// 单测
+exec('pnpm j');
+
 // 改版本
 pkg.version = newVal;
 fs.writeFileSync(path.resolve(process.cwd(), './package.json'), JSON.stringify(pkg, undefined, 2)+'\n');
