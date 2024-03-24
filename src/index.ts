@@ -207,7 +207,7 @@ const _watch = (watchableObj, p1, p2) => {
   return dispose;
 };
 
-export const watch = _watch as IWatch;
+export const watch: IWatch = _watch as any;
 
 // const p = watchable({
 //   a: {
