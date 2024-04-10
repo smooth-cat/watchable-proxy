@@ -88,7 +88,9 @@ describe('watch', () => {
       oldVal: 10,
       newVal: 20,
       type: 'SET',
-      paths: ['a', 'b', 'c']
+      paths: ['a', 'b', 'c'],
+      matchedIndex: 0,
+      matchedRule: 'a.b.c'
     });
   });
 
@@ -139,7 +141,9 @@ describe('watch', () => {
       oldVal: 10,
       newVal: 30,
       type: 'SET',
-      paths: ['a', 'b', 'c']
+      paths: ['a', 'b', 'c'],
+      matchedIndex: 0,
+      matchedRule: 'a.b.*'
     });
 
     p.a.b.e = 30;
@@ -148,7 +152,9 @@ describe('watch', () => {
       oldVal: undefined,
       newVal: 30,
       type: 'ADD',
-      paths: ['a', 'b', 'e']
+      paths: ['a', 'b', 'e'],
+      matchedIndex: 0,
+      matchedRule: 'a.b.*'
     });
   });
 
@@ -162,7 +168,9 @@ describe('watch', () => {
       oldVal: 10,
       newVal: 30,
       type: 'SET',
-      paths: ['a', 'b', 'c']
+      paths: ['a', 'b', 'c'],
+      matchedIndex: 0,
+      matchedRule: 'a.**'
     });
 
     p.a.x = 30; // fn2 called (type -> 'ADD')
@@ -171,7 +179,9 @@ describe('watch', () => {
       oldVal: undefined,
       newVal: 30,
       type: 'ADD',
-      paths: ['a', 'x']
+      paths: ['a', 'x'],
+      matchedIndex: 0,
+      matchedRule: 'a.**'
     });
   });
 
@@ -185,7 +195,9 @@ describe('watch', () => {
       oldVal: undefined,
       newVal: 2,
       type: 'ADD',
-      paths: ['arr', '2']
+      paths: ['arr', '2'],
+      matchedIndex: 0,
+      matchedRule: 'arr.*n'
     });
     p.arr[2] = 'baz'; // fn3 called
     delete p.arr[2]; // fn3 called
@@ -194,7 +206,9 @@ describe('watch', () => {
       oldVal: 'baz',
       newVal: undefined,
       type: 'DEL',
-      paths: ['arr', '2']
+      paths: ['arr', '2'],
+      matchedIndex: 0,
+      matchedRule: 'arr.*n'
     });
     p.arr[0].foo = 'bar'; // fn3 called, match 'arr.*n.**'
     expect(fn3).toHaveBeenCalledTimes(4);
@@ -214,7 +228,9 @@ describe('watch', () => {
       oldVal: undefined,
       newVal: 30,
       type: 'ADD',
-      paths: ['a', 'b', 'e']
+      paths: ['a', 'b', 'e'],
+      matchedIndex: 0,
+      matchedRule: /a\.b\.[^\.]+/
     });
   });
 });

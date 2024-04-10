@@ -127,7 +127,15 @@ function deleteProperty(target, key) {
 /** key 被监听的对象，value 监听函数 set */
 export const watchMap = new WeakMap();
 export type IWatchCallback = (
-  props: { path: string; paths: string[]; oldVal: any; newVal: any; type: OprType },
+  props: {
+    path: string;
+    paths: string[];
+    oldVal: any;
+    newVal: any;
+    type: OprType;
+    matchedIndex: number;
+    matchedRule: string | RegExp;
+  },
   dispose: () => void
 ) => any;
 
@@ -173,7 +181,7 @@ const _watch = (watchableObj, p1, p2) => {
       return fn(props, dispose);
     }
 
-    const matched = cond.some(it => {
+    const matchedIndex: number = cond.findIndex(it => {
       // 正则则直接匹配即可
       if (getType(it) === 'RegExp') {
         return it.test(path);
@@ -196,9 +204,10 @@ const _watch = (watchableObj, p1, p2) => {
       return regExp.test(path);
     });
 
-    if (matched) {
+    if (matchedIndex !== -1) {
+      const matchedRule = cond[matchedIndex];
       // 校对是否符合条件
-      return fn(props, dispose);
+      return fn({ ...props, matchedIndex, matchedRule }, dispose);
     }
   };
 

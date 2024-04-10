@@ -26,7 +26,9 @@ const dispose = watch(proxy, ['a.b.c'], ({ path, oldVal, newVal, type, paths }) 
     oldVal, // 10
     newVal, // 20
     type,   // 'SET' (type includes 'SET' | 'ADD' | 'DEL' )
-    paths   // ['a', 'b', 'c']
+    paths,  // ['a', 'b', 'c']
+    matchedIndex, // 0
+    matchedRule,  // 'a.b.c'
   })
 });
 
