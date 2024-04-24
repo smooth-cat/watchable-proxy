@@ -8,15 +8,15 @@ describe('watchable', () => {
     const { b } = proxy;
 
     // __isObservableObj 标记该对象为代理对象
-    expect(b.__isObservableObj).toBe(true);
+    expect(b['__isObservableObj']).toBe(true);
     // 该对象在上层对象下的 key 为 b
-    expect(b.__key).toBe('b');
+    expect(b['__key']).toBe('b');
     // 该对象的上层对象 为 proxy
-    expect(b.__parent).toBe(proxy);
+    expect(b['__parent']).toBe(proxy);
   });
 
   it('set', () => {
-    const proxy = watchable({ a: 10 });
+    const proxy = watchable<any>({ a: 10 });
     proxy.a = 20;
     proxy.b = 30;
     expect(proxy.a).toBe(20);
@@ -37,7 +37,7 @@ describe('watchable', () => {
 
   it('get private', () => {
     const proxy = watchable({ a: { b: 10 } });
-    expect(proxy.__private).toEqual({
+    expect(proxy['__private']).toEqual({
       __isObservableObj: true,
       __parent: null,
       __key: ''
@@ -45,13 +45,13 @@ describe('watchable', () => {
   });
 
   it('move an obj-prop to another prop， __key will change into new prop name', () => {
-    const proxy = watchable({
+    const proxy = watchable<any>({
       a: { b: 10 },
       x: 0
     });
 
     proxy.x = proxy.a;
-    expect(proxy.x.__private).toEqual({
+    expect(proxy.x['__private']).toEqual({
       __isObservableObj: true,
       __parent: proxy,
       // __key changes from 'a' into 'x'
@@ -62,7 +62,7 @@ describe('watchable', () => {
 
 describe('watch', () => {
   function createSampleProxy() {
-    return watchable({
+    return watchable<any>({
       a: {
         b: {
           c: 10,

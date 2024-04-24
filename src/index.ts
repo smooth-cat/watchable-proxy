@@ -20,14 +20,14 @@ const targetToProxy = new WeakMap();
 
 const isObject = val => val !== null && typeof val === 'object';
 
-export const watchable = (target, belongInfo = {}) => {
+export const watchable = <T>(target: T, belongInfo = {}): T => {
   // target 就是代理对象
   if (target[PrivateKeys.__isObservableObj]) {
     return target;
   }
 
   // target 已有代理对象则返回
-  const existingProxy = targetToProxy.get(target);
+  const existingProxy = targetToProxy.get(target as any);
   if (existingProxy) {
     return existingProxy;
   }
@@ -49,9 +49,9 @@ export const watchable = (target, belongInfo = {}) => {
   });
 
   // 原对象 -> 代理对象
-  targetToProxy.set(target, proxy);
+  targetToProxy.set(target as any, proxy);
 
-  return proxy;
+  return proxy as T;
 };
 /*------------------------ setter ------------------------*/
 const createSetter = __private => {
