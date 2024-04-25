@@ -19,7 +19,7 @@ export const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, ke
 const targetToProxy = new WeakMap();
 
 const isObject = val => val !== null && typeof val === 'object';
-
+const isObservable = (val) => isObject(val) && val[PrivateKeys.__isObservableObj];
 export const watchable = <T>(target: T, belongInfo = {}): T => {
   // target 就是代理对象
   if (target[PrivateKeys.__isObservableObj]) {
@@ -57,18 +57,33 @@ export const watchable = <T>(target: T, belongInfo = {}): T => {
 const createSetter = __private => {
   return function (target, key, value, receiver) {
     // 如果 value 是 proxy 那么 parent 和 key 将修正为 receiver 和 key，在变成 proxy 后又被赋值到其他属性时，__parent 指向最新的 parent
-    if (isObject(value) && value[PrivateKeys.__isObservableObj]) {
+    if (isObservable(value)) {
       value.__private.__parent = receiver;
       value.__private.__key = key;
     }
+    
+    const oldValProxy = receiver[key];
+    // 如果原 value 是属于 本代理对象 的 子代理对象，但新值不是该子代理对象，则说明 子代理对象已经不再处于父对象的监听范围之内，其 __parent 移除
+    if(isObservable(oldValProxy)) {
+      const isBelongToReceiver = oldValProxy.__private.__parent === receiver;
+      if(isBelongToReceiver && value !== oldValProxy) {
+        oldValProxy.__private.__parent = null;
+        oldValProxy.__private.__key = '';
+      }
+    }
+
     const oldVal = target[key];
     const type = hasOwn(target, key) ? OprType.SET : OprType.ADD;
     loopParent(key, receiver, oldVal, value, type);
+    const res = Reflect.set(target, key, value, receiver);
+    afterSetFns.forEach((v) => v());
+    afterSetFns.clear();
     // console.log('set', { target, key, value, receiver });
-    return Reflect.set(target, key, value, receiver);
+    return res;
   };
 };
 
+const afterSetFns = new Set<Function>();
 /** 增删改时触发向上回溯所有父代理对象，触发对应 watcher */
 function loopParent(key, parent, oldVal, newVal, type) {
   const paths = [key];
@@ -79,7 +94,10 @@ function loopParent(key, parent, oldVal, newVal, type) {
     if (isWatched) {
       watchSet.forEach(fn => {
         const rPaths = [...paths].reverse();
-        fn({ path: rPaths.join('.'), paths: rPaths, oldVal, newVal, type });
+        const afterSetFn = fn({ path: rPaths.join('.'), paths: rPaths, oldVal, newVal, type });
+        if(getType(afterSetFn) === 'Function') {
+          afterSetFns.add(afterSetFn);
+        }
       });
     }
     const nextP = parent[PrivateKeys.__parent];
@@ -119,9 +137,24 @@ const createGetter = __private => {
 /*------------------------ delete ------------------------*/
 function deleteProperty(target, key) {
   // console.log('delete', { target, key });
-  const parent = targetToProxy.get(target);
-  loopParent(key, parent, target[key], undefined, OprType.DEL);
-  return Reflect.deleteProperty(target, key);
+
+  const receiver = targetToProxy.get(target);
+
+  const oldValProxy = receiver[key];
+  // 如果原 value 是属于 本代理对象 的 子代理对象，则使用 delete 关键字会让其不再属于 父对象的监听范围
+  if(isObservable(oldValProxy)) {
+    const isBelongToReceiver = oldValProxy.__private.__parent === receiver;
+    if(isBelongToReceiver) {
+      oldValProxy.__private.__parent = null;
+      oldValProxy.__private.__key = '';
+    }
+  }
+
+  loopParent(key, receiver, target[key], undefined, OprType.DEL);
+  const res = Reflect.deleteProperty(target, key);
+  afterSetFns.forEach((v) => v());
+  afterSetFns.clear();
+  return res;
 }
 
 /** key 被监听的对象，value 监听函数 set */
@@ -218,16 +251,19 @@ const _watch = (watchableObj, p1, p2) => {
 
 export const watch: IWatch = _watch as any;
 
-// const p = watchable({
-//   a: {
-//     b: {
-//       c: 10,
-//       d: 20,
-//     },
-//   },
-// });
+const p = watchable({
+  a: {
+    b: {
+      c: 10,
+      d: 20,
+    },
+  },
+});
 
 // watch(p, 'a.b.*', (props) => {
-//   console.log('a.b.c发生变化', props);
+//   console.log('a.b.c发生变化', p.a.b.c);
+//   return () => {
+//     console.log('a.b.c完成变化', p.a.b.c);
+//   }
 // })
 // p.a.b.c = 2

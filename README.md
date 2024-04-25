@@ -12,7 +12,7 @@ const proxy = watchable({
   a: {
     b: {
       c: 10,
-      d: 20,
+      d: 'hello world',
     }
   }
 });
@@ -21,7 +21,7 @@ const proxy = watchable({
 // it's for matching the “path” prop in callback
 const dispose = watch(proxy, ['a.b.c'], ({ path, oldVal, newVal, type, paths }) => {
   console.log({
-    // when execute proxy.a.b.c = 20, callback called, props are:
+    // when execute "proxy.a.b.c = 20", callback called, props are:
  		path,   // 'a.b.c'
     oldVal, // 10
     newVal, // 20
@@ -30,6 +30,13 @@ const dispose = watch(proxy, ['a.b.c'], ({ path, oldVal, newVal, type, paths }) 
     matchedIndex, // 0
     matchedRule,  // 'a.b.c'
   })
+  
+  console.log(proxy.a.b.c) // 10
+  // the function  will called after set
+  return () => {
+    // you can get the modified object
+    console.log(proxy.a.b.c) // 20
+  }
 });
 
 proxy.a.b.c = 20;

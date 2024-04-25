@@ -44,20 +44,6 @@ describe('watchable', () => {
     });
   });
 
-  it('move an obj-prop to another prop， __key will change into new prop name', () => {
-    const proxy = watchable<any>({
-      a: { b: 10 },
-      x: 0
-    });
-
-    proxy.x = proxy.a;
-    expect(proxy.x['__private']).toEqual({
-      __isObservableObj: true,
-      __parent: proxy,
-      // __key changes from 'a' into 'x'
-      __key: 'x'
-    });
-  });
 });
 
 describe('watch', () => {
@@ -129,6 +115,37 @@ describe('watch', () => {
     p.a.b = 1;
     expect(spy).toHaveBeenCalledTimes(1);
   });
+
+  it('trigger watcher by temp', () => {
+    const p = createSampleProxy();
+    const spy = jest.fn();
+    watch(p, ['a.b'], spy);
+    const { a: temp } = p;
+    temp.b = 0;
+    expect(spy).toHaveBeenCalled();
+  })
+
+  it('get latest value by set', () => {
+    const p = watchable({v:'old'});
+    watch(p, () => {
+      expect(p.v).toBe('old')
+      return () => {
+        expect(p.v).toBe('new')
+      }
+    });
+    p.v = 'new';
+  })
+
+  it('get latest value by delete', () => {
+    const p = watchable({v:'old'});
+    watch(p, () => {
+      expect(p.v).toBe('old')
+      return () => {
+        expect(p.v).toBe(undefined)
+      }
+    });
+    delete p.v
+  })
 
   it('fuzzy match *', () => {
     const p = createSampleProxy();
@@ -234,3 +251,83 @@ describe('watch', () => {
     });
   });
 });
+
+describe('watch transfer' , () => {
+  it('move an obj-prop to another prop， __key will change into new prop name', () => {
+    const proxy = watchable<any>({
+      a: { b: 10 },
+      x: 0
+    });
+
+    proxy.x = proxy.a;
+    expect(proxy.x['__private']).toEqual({
+      __isObservableObj: true,
+      __parent: proxy,
+      // __key changes from 'a' into 'x'
+      __key: 'x'
+    });
+  });
+
+  it('remove a sub proxy , its __parent will be null', () => {
+    const proxy = watchable({
+      a1: { b: 10 },
+      a2: { b: 10 },
+    });
+
+    // remove by delete
+    const tempA1 = proxy.a1;
+    delete proxy.a1;
+
+    const fn1 = jest.fn();
+    expect(tempA1['__private']).toEqual({
+      __isObservableObj: true,
+      __parent: null,
+      __key: ''
+    });
+
+    watch(proxy, 'a1.*',fn1)
+    tempA1.b = 20;
+    expect(fn1).toHaveBeenCalledTimes(0);
+
+    // remove by set
+    const tempA2 = proxy.a2;
+    proxy.a2 = null;
+
+    expect(tempA2['__private']).toEqual({
+      __isObservableObj: true,
+      __parent: null,
+      __key: ''
+    });
+
+    const fn2 = jest.fn();
+    watch(proxy, 'a2.*',fn2)
+    tempA2.b = 20;
+    expect(fn2).toHaveBeenCalledTimes(0);
+  });
+
+  it('a proxy ref a subProxy of another proxy, the __parent and the __key of subProxy will change to the former‘s', () => {
+    const p1 = watchable({
+      a: {b: 10}
+    });
+    const p2 = watchable({
+      a1: {b: 20}
+    });
+
+    p1.a = p2.a1;
+    
+    expect(p1.a['__private']).toEqual({
+      __isObservableObj: true,
+      __parent: p1,
+      __key: 'a'
+    });
+
+    const fn1 = jest.fn();
+    const fn2 = jest.fn();
+    watch(p1, 'a.*', fn1)
+    watch(p2, 'a1.*', fn2)
+    p2.a1.b = 40;
+    expect(fn1).toHaveBeenCalled();
+    // 因为 p2.a1 对象的 __parent 已指向 p1 所以其不再受 p2 监听
+    expect(fn2).toHaveBeenCalledTimes(0);
+  })
+})
