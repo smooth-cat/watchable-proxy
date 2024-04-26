@@ -41,7 +41,7 @@ const dispose = watch(proxy, ['a.b.c'], ({ path, oldVal, newVal, type, paths }) 
 
 proxy.a.b.c = 20;
 
-// if you don't want watch any more, do dsipose
+// if you don't want watch any more, do dispose
 dispose();
 ```
 
@@ -60,26 +60,26 @@ const proxy = watchable({
 
 // watch any prop of “b” change
 watch(proxy, ['a.b.*'], fn1);
-function fn1({ path, oldVal, newVal, type, paths }) { }
+function fn1() { }
 proxy.a.b.c = 20; // fn1 called
 proxy.a.b.d = 20; // fn1 called
 
 // watch any props or subProps of “a” change
 watch(proxy, ['a.**'], fn2);
-function fn2({ path, oldVal, newVal, type, paths }) { }
+function fn2() { }
 proxy.a.b.c = 30;   // fn2 called
 proxy.a.x = 30;     // fn2 called (type -> 'ADD')
 
 // watch any item of “arr” change
 watch(proxy, ['arr.*n', 'arr.*n.**'], fn3);
-function fn3({ path, oldVal, newVal, type, paths }) { }
+function fn3() { }
 proxy.arr.push(2);       // fn3 called, match 'arr.*n'
 proxy.arr[2] = 'baz';    // fn3 called
 delete proxy.arr[2];     // fn3 called
 proxy.arr[0].foo = 'bar' // fn3 called, match 'arr.*n.**'
 ```
 
-## RegExp macth
+## regexp match
 
 ```js
 const proxy = watchable({
@@ -94,8 +94,107 @@ const proxy = watchable({
 
 // if “/a\.b\.[^\.]+/.test(path)” is true , fn1 will be called
 watch(proxy, [/a\.b\.[^\.]+/], fn1);
-function fn1({ path, oldVal, newVal, type, paths }) { }
+function fn1() { }
 
 proxy.a.b.c = 20; // fn1 called
 proxy.a.b.d = 30; // fn1 called
 ```
+
+## watch share and watch pass
+
+```typescript
+const a = watchable({ });
+const b = watchable({ });
+const c = watchable({ value: 10 });
+
+a.c = c;
+b.c = c;
+
+watch(a, ['c'], aWatcher);
+function aWatcher() { }
+
+watch(b, ['c'], bWatcher);
+function bWatcher() { }
+
+// both aWatcher and bWatcher will be called
+c.value = 20
+```
+
+## circular reference
+
+#### when raw object has circular reference, the parent("c") can't watch changes of the circular ref("a")
+
+```typescript
+// a
+// └── b 
+// 	   ├── c ------- a ( circular ref  )
+// 		 └── d
+const rawA: any = {
+  b: {
+    c: {},
+    d: 'd'
+  }
+};
+a.b.c.a = rawA;
+
+const a = watchable(rawA);
+function aWatcher() { }
+watch(a, aWatcher);
+
+const c = a.b.c;
+function cWatcher() { }
+watch(c, cWatcher);
+
+// aWatcher will be called, but cWatcher will not be called even d is a child node of c by circular ref
+a.b.c.d = 'joker';
+```
+
+#### manually make circular ref after make watchable
+
+1. use assignment expression, **circular node's change will trigger watchers all the way up until the node been walked**;
+2. use setProp api，will work like above raw circular ref case
+
+```typescript
+// a
+// └── b 
+// 	   ├── c ------- a ( circular ref  )
+// 		 └── d
+const a = watchable({
+  b: {
+    c: {},
+    d: 'd'
+  }
+});
+const c = a.b.c;
+
+// manually make circular ref by assignment expression
+// c.a = a;
+
+// manually make circular ref by setProp api
+setProp(c, 'a', a, { withoutWatchTrain: true });
+
+function aWatcher() { }
+watch(a, aWatcher);
+
+function cWatcher() { }
+watch(c, cWatcher);
+
+
+// aWatcher will be called normally
+// use assignment expression : cWatcher will  be called
+//           use setProp api : cWatcher won't be called
+a.b.c.d = 'joker';
+```
+
+## setProp and no trigger watchers single time
+
+```typescript
+const p = watchable({ value: 10 });
+
+function watcher() { }
+watch(p, watcher);
+
+// use noTriggerWatcher the watcher will no be trigger this time
+setProp(p, 'value', 10, { noTriggerWatcher: true });
+```
+

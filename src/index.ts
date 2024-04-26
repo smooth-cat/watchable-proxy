@@ -1,7 +1,6 @@
 const PrivateKeys = {
-  __isObservableObj: '__isObservableObj',
-  __parent: '__parent',
-  __key: '__key'
+  __$_isObservableObj: '__$_isObservableObj',
+  __$_parents: '__$_parents'
 };
 
 export enum OprType {
@@ -19,10 +18,10 @@ export const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, ke
 const targetToProxy = new WeakMap();
 
 const isObject = val => val !== null && typeof val === 'object';
-const isObservable = (val) => isObject(val) && val[PrivateKeys.__isObservableObj];
-export const watchable = <T>(target: T, belongInfo = {}): T => {
+const isObservable = val => isObject(val) && val[PrivateKeys.__$_isObservableObj];
+export const watchable = <T>(target: T, belongInfo?: any): T => {
   // target 就是代理对象
-  if (target[PrivateKeys.__isObservableObj]) {
+  if (target[PrivateKeys.__$_isObservableObj]) {
     return target;
   }
 
@@ -32,15 +31,16 @@ export const watchable = <T>(target: T, belongInfo = {}): T => {
     return existingProxy;
   }
 
-  const __private = {
-    __isObservableObj: true,
-    __parent: null,
-    __key: '',
-    ...belongInfo
+  const __$_private = {
+    isObservableObj: true,
+    parents: []
   };
+  if (belongInfo) {
+    __$_private.parents.push(belongInfo);
+  }
 
-  const set = createSetter(__private);
-  const get = createGetter(__private);
+  const set = createSetter(__$_private);
+  const get = createGetter(__$_private);
 
   const proxy = new Proxy(target, {
     set,
@@ -54,29 +54,35 @@ export const watchable = <T>(target: T, belongInfo = {}): T => {
   return proxy as T;
 };
 /*------------------------ setter ------------------------*/
-const createSetter = __private => {
-  return function (target, key, value, receiver) {
-    // 如果 value 是 proxy 那么 parent 和 key 将修正为 receiver 和 key，在变成 proxy 后又被赋值到其他属性时，__parent 指向最新的 parent
-    if (isObservable(value)) {
-      value.__private.__parent = receiver;
-      value.__private.__key = key;
+const createSetter = __$_private => {
+  return function (target, key, rawValue, receiver) {
+    const action = SetAction.is(rawValue) ? rawValue : null;
+    const value = action ? action.value : rawValue;
+
+    // 非 withoutWatchTrain 则需要收集 parent
+    if (isObservable(value) && !action?.withoutWatchTrain) {
+      value.__$_private.parents.push({
+        parent: receiver,
+        key
+      });
     }
-    
+
     const oldValProxy = receiver[key];
-    // 如果原 value 是属于 本代理对象 的 子代理对象，但新值不是该子代理对象，则说明 子代理对象已经不再处于父对象的监听范围之内，其 __parent 移除
-    if(isObservable(oldValProxy)) {
-      const isBelongToReceiver = oldValProxy.__private.__parent === receiver;
-      if(isBelongToReceiver && value !== oldValProxy) {
-        oldValProxy.__private.__parent = null;
-        oldValProxy.__private.__key = '';
+    // 如果原 value 是属于 本代理对象 的 子代理对象，但新值不是该子代理对象，则说明 子代理对象已经不再处于父对象的监听范围之内，其 parent 移除
+    if (isObservable(oldValProxy)) {
+      const foundReceiverIndex = oldValProxy.__$_private.parents.find(it => it.parent === receiver);
+      if (foundReceiverIndex !== -1 && value !== oldValProxy) {
+        oldValProxy.__$_private.parents.splice(foundReceiverIndex, 1);
       }
     }
 
     const oldVal = target[key];
     const type = hasOwn(target, key) ? OprType.SET : OprType.ADD;
-    loopParent(key, receiver, oldVal, value, type);
+    if (!action?.noTriggerWatcher) {
+      loopParent([key], receiver, oldVal, value, type);
+    }
     const res = Reflect.set(target, key, value, receiver);
-    afterSetFns.forEach((v) => v());
+    afterSetFns.forEach(v => v());
     afterSetFns.clear();
     // console.log('set', { target, key, value, receiver });
     return res;
@@ -85,51 +91,55 @@ const createSetter = __private => {
 
 const afterSetFns = new Set<Function>();
 /** 增删改时触发向上回溯所有父代理对象，触发对应 watcher */
-function loopParent(key, parent, oldVal, newVal, type) {
-  const paths = [key];
-  while (1) {
-    // 查找被监听的根对象
-    const watchSet = watchMap.get(parent) || new Set();
-    const isWatched = watchSet.size > 0;
-    if (isWatched) {
-      watchSet.forEach(fn => {
-        const rPaths = [...paths].reverse();
-        const afterSetFn = fn({ path: rPaths.join('.'), paths: rPaths, oldVal, newVal, type });
-        if(getType(afterSetFn) === 'Function') {
-          afterSetFns.add(afterSetFn);
-        }
-      });
-    }
-    const nextP = parent[PrivateKeys.__parent];
-    const nextK = parent[PrivateKeys.__key];
-    //  不存在下一个 parent 就结束
-    if (!nextP) break;
-    // 存在则继续
-    paths.push(nextK);
-    parent = nextP;
+function loopParent(paths, parent, oldVal, newVal, type, walkedParent = new Set()) {
+  // 处理该 parent 节点
+
+  const watchSet = watchMap.get(parent) || new Set();
+  const isWatched = watchSet.size > 0;
+  if (isWatched) {
+    watchSet.forEach(fn => {
+      const afterSetFn = fn({ path: paths.join('.'), paths: [...paths], oldVal, newVal, type });
+      if (getType(afterSetFn) === 'Function') {
+        afterSetFns.add(afterSetFn);
+      }
+    });
   }
-  return paths.reverse();
+
+  walkedParent.add(parent);
+
+  // 获取需要处理的 grandParent 节点
+  const grandParents = parent[PrivateKeys.__$_parents].filter(it => !walkedParent.has(it.parent));
+  if (grandParents.length) {
+    grandParents.forEach(({ key, parent }) => {
+      loopParent([key, ...paths], parent, oldVal, newVal, type, walkedParent);
+    });
+  }
+
+  // 递归完成后清除 set 避免内存溢出
+  if (paths.length === 1) {
+    walkedParent.clear();
+  }
 }
 /*------------------------ getter ------------------------*/
 // 递归创建 getter 时从 observable 传过来的 父代理对象 receiver
-const createGetter = __private => {
+const createGetter = __$_private => {
   return function (target, key, receiver) {
     // console.log('get', { target, key, receiver });
 
-    if (key === '__private') {
-      return __private;
+    if (key === '__$_private') {
+      return __$_private;
     }
 
     const isPrivateKey = Object.keys(PrivateKeys).includes(key);
     if (isPrivateKey) {
-      return __private[key];
+      return __$_private[key.slice(4)];
     }
 
     const value = Reflect.get(target, key, receiver);
 
     // 值还是一个对象就返回一个代理对象, receiver 代表父代理对象
     if (isObject(value)) {
-      return watchable(value, { __parent: receiver, __key: key });
+      return watchable(value, { parent: receiver, key });
     }
     return value;
   };
@@ -142,17 +152,16 @@ function deleteProperty(target, key) {
 
   const oldValProxy = receiver[key];
   // 如果原 value 是属于 本代理对象 的 子代理对象，则使用 delete 关键字会让其不再属于 父对象的监听范围
-  if(isObservable(oldValProxy)) {
-    const isBelongToReceiver = oldValProxy.__private.__parent === receiver;
-    if(isBelongToReceiver) {
-      oldValProxy.__private.__parent = null;
-      oldValProxy.__private.__key = '';
+  if (isObservable(oldValProxy)) {
+    const foundReceiverIndex = oldValProxy.__$_private.parents.find(it => it.parent === receiver);
+    if (foundReceiverIndex !== -1) {
+      oldValProxy.__$_private.parents.splice(foundReceiverIndex, 1);
     }
   }
 
-  loopParent(key, receiver, target[key], undefined, OprType.DEL);
+  loopParent([key], receiver, target[key], undefined, OprType.DEL);
   const res = Reflect.deleteProperty(target, key);
-  afterSetFns.forEach((v) => v());
+  afterSetFns.forEach(v => v());
   afterSetFns.clear();
   return res;
 }
@@ -251,19 +260,63 @@ const _watch = (watchableObj, p1, p2) => {
 
 export const watch: IWatch = _watch as any;
 
-const p = watchable({
-  a: {
-    b: {
-      c: 10,
-      d: 20,
-    },
-  },
-});
+const DefaultPureRefOpt = {
+  noTriggerWatcher: false,
+  withoutWatchTrain: false
+};
+type IPureRefOpt = Partial<typeof DefaultPureRefOpt>;
 
-// watch(p, 'a.b.*', (props) => {
-//   console.log('a.b.c发生变化', p.a.b.c);
-//   return () => {
-//     console.log('a.b.c完成变化', p.a.b.c);
+// TODO: 兼容非 Object 情况
+export const setProp = <T>(proxy: T, key: string | number, value: any, opt: IPureRefOpt = {}) => {
+  opt = { ...DefaultPureRefOpt, ...opt };
+  const action = new SetAction(value, opt);
+  proxy[key] = action;
+
+  return true;
+};
+
+class SetAction {
+  static is = (v: any) => v instanceof SetAction;
+  value: any;
+  constructor(value, opt) {
+    // 非对象则直接让 value 等于原始值
+    if (!isObject(value)) {
+      this.value = value;
+      return;
+    }
+
+    for (const key in opt) {
+      this[key] = opt[key]
+    }
+
+    const valueIsWatchable = isObservable(value);
+    const existingProxy = targetToProxy.get(value);
+
+    // 这里需要主动把非 proxy 转为 proxy 不然在 get 时转换会出现赋值 parent 的情况
+    const proxyValue = valueIsWatchable ? value : existingProxy ?? watchable(value);
+    this.value = proxyValue;
+  }
+}
+
+// const a: any = {
+//   b: {
+//     c: {},
+//     d: 'd'
 //   }
-// })
-// p.a.b.c = 2
+// };
+// const aProxy = watchable<any>(a);
+// // 使用 pureRef 避免循环引用的对象的 父对象触发 watcher
+// setProp(aProxy.b.c, 'a', aProxy, {
+//   withoutWatchTrain: true
+// });
+// watch(aProxy, props => {
+//   console.log('aProxy', props);
+// });
+
+// // 使用赋值方式后
+// const cTemp = aProxy.b.c;
+// watch(cTemp, props => {
+//   console.log('cTemp', props);
+// });
+
+// aProxy.b.d = 'joker';
