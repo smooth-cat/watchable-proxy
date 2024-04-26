@@ -125,10 +125,9 @@ c.value = 20
 #### when raw object has circular reference, the parent("c") can't watch changes of the circular ref("a")
 
 ```typescript
-// a
-// └── b 
-// 	   ├── c ------- a ( circular ref  )
-// 		 └── d
+// a -> b -> c -> a  ( circular ref  )
+//      | -> d
+
 const rawA: any = {
   b: {
     c: {},
@@ -155,10 +154,9 @@ a.b.c.d = 'joker';
 2. use setProp api，will work like above raw circular ref case
 
 ```typescript
-// a
-// └── b 
-// 	   ├── c ------- a ( circular ref  )
-// 		 └── d
+// a -> b -> c -> a  ( circular ref  )
+//      | -> d
+
 const a = watchable({
   b: {
     c: {},
