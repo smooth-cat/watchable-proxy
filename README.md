@@ -134,7 +134,7 @@ const rawA: any = {
     d: 'd'
   }
 };
-a.b.c.a = rawA;
+rawA.b.c.a = rawA;
 
 const a = watchable(rawA);
 function aWatcher() { }
@@ -144,7 +144,9 @@ const c = a.b.c;
 function cWatcher() { }
 watch(c, cWatcher);
 
-// aWatcher will be called, but cWatcher will not be called even d is a child node of c by circular ref
+// aWatcher will be called, 
+// but cWatcher will not be called 
+// even d is a child node of c by circular ref
 a.b.c.d = 'joker';
 ```
 
