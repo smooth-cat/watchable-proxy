@@ -514,3 +514,50 @@ describe('setProp api', () => {
     });
   })
 })
+
+class NormalClass {
+  value= 10;
+  getSum(v: number = 0) {
+    return this.value + v
+  }
+}
+
+describe('function this point', () => {
+  it('normal class proxy', () => {
+    const a = new NormalClass();
+
+    const p = watchable(a);
+
+    const getSum = p.getSum;
+
+    // 使用了高阶函数做执行，相当于在高阶函数中调用 a.getValue()
+    expect(getSum()).toBe(10)
+  });
+
+  it('normal class proxy use call or apply', () => {
+    const a = new NormalClass();
+
+    const obj = { value: 20 }
+
+    const p = watchable(a);
+
+    const getSum = p.getSum;
+    // 使用了高阶函数做执行，相当于在高阶函数中调用 a.getValue()
+    expect(getSum.call(obj, 1)).toBe(21)
+    expect(getSum.apply(obj, [2])).toBe(22)
+  })
+  
+  it('normal class proxy use bind', () => {
+    const a = new NormalClass();
+
+    const obj = { value: 20 }
+
+    const p = watchable(a);
+
+    const getSum = p.getSum;
+    getSum.bind(obj);
+
+    // 使用了高阶函数做执行，相当于在高阶函数中调用 a.getValue()
+    expect(getSum(3)).toBe(23)
+  })
+})

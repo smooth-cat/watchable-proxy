@@ -198,3 +198,42 @@ watch(p, watcher);
 setProp(p, 'value', 10, { noTriggerWatcher: true });
 ```
 
+## "this" of an function property
+
+#### "this" of array's method
+
+```typescript
+// if the method is belong to an array,
+// "this" will always bind to "proxy receiver" 
+// to make sure array's operator like "push" "splice"
+// can be watched correctly;
+const arr =  watchable([0,1,2]);
+push = arr.push;
+
+function watcher() { }
+watch(arr, ['*n'], watcher);
+
+// watcher can be triggerd
+push(3);
+```
+
+#### "this" of function belongs to an literal object or instance of a class
+
+```typescript
+class A {
+  value= 10;
+  getSum(v: number = 0) {
+    return this.value + v
+  }
+}
+
+const rawA = new A();
+const a = watchable(rawA);
+
+const { getSum } = a;
+getSum(1) // return 11
+
+// use fn.call, apply and bind as well
+const b = { value: 20 };
+getSum.call(b, 1); // return 21
+```

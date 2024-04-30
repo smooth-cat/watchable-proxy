@@ -137,13 +137,56 @@ const createGetter = __$_private => {
 
     const value = Reflect.get(target, key, receiver);
 
+
+    if(typeof value === 'function') {    
+      return createRewriteFn(target, key, value, receiver);
+    }
+
     // 值还是一个对象就返回一个代理对象, receiver 代表父代理对象
     if (isObject(value)) {
       return watchable(value, { parent: receiver, key });
     }
+
+
+
     return value;
   };
 };
+
+const createRewriteFn = (target, key, value, receiver) => {
+
+  function fn(...args) {
+        
+    // 数组对象任然使用 receiver 来保证数组项的监听没有问题 
+    if(Array.isArray(target)) {
+      return value.call(receiver, ...args);
+    } 
+    // 使用 bind 后
+    else if(fn['_this']) {
+      return Function.prototype.call.call(target[key], fn['_this'], ...args);
+    }
+    // 其他 class 生成的对象则使用 target 直接调用的方式来实现
+    else {
+      return target[key](...args);
+    }
+  }
+
+  fn.call = (thisArg: any, ...args: any[]) => {
+    return Function.prototype.call.call(target[key], thisArg, ...args);
+  }
+
+  fn.apply = (thisArg: any, args: any[]) => {
+    return Function.prototype.apply.call(target[key], thisArg, args);
+  }
+
+  fn.bind = (thisArg: any) => {
+    fn['_this'] = thisArg;
+    return fn;
+  }
+
+  return fn;
+}
+
 /*------------------------ delete ------------------------*/
 function deleteProperty(target, key) {
   // console.log('delete', { target, key });
