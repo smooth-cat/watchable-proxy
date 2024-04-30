@@ -5,10 +5,11 @@ type IParentItem = {
   key: string;
 };
 
-const pvt = (...args: IParentItem[]) => {
+const pvt = (proxy, ...args: IParentItem[]) => {
   return {
     isObservableObj: true,
-    parents: args
+    parents: args,
+    raw: proxy['__$_raw']
   };
 };
 
@@ -54,7 +55,7 @@ describe('watchable', () => {
 
   it('get private', () => {
     const proxy = watchable({ a: { b: 10 } });
-    expect(proxy['__$_private']).toEqual(pvt());
+    expect(proxy['__$_private']).toEqual(pvt(proxy));
   });
 });
 
@@ -274,6 +275,7 @@ describe('watch transfer', () => {
     proxy.x = proxy.a;
     expect(proxy.a['__$_private']).toEqual(
       pvt(
+        proxy.a,
         {
           parent: proxy,
           key: 'a'
@@ -298,7 +300,7 @@ describe('watch transfer', () => {
 
     const fn1 = jest.fn();
     // 删除了 tempA1 说明 __parents 不存在任何父引用
-    expect(tempA1['__$_private']).toEqual(pvt());
+    expect(tempA1['__$_private']).toEqual(pvt(tempA1));
 
     watch(proxy, 'a1.*', fn1);
     tempA1.b = 20;
@@ -308,7 +310,7 @@ describe('watch transfer', () => {
     const tempA2 = proxy.a2;
     proxy.a2 = 12 as any;
 
-    expect(tempA2['__$_private']).toEqual(pvt());
+    expect(tempA2['__$_private']).toEqual(pvt(tempA2));
 
     const fn2 = jest.fn();
     watch(proxy, 'a2.*', fn2);
@@ -328,6 +330,7 @@ describe('watch transfer', () => {
 
     expect(p1.a['__$_private']).toEqual(
       pvt(
+        p1.a,
         {
           parent: p2,
           key: 'a1'

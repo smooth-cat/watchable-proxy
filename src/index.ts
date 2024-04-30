@@ -1,6 +1,7 @@
 const PrivateKeys = {
   __$_isObservableObj: '__$_isObservableObj',
-  __$_parents: '__$_parents'
+  __$_parents: '__$_parents',
+  __$_raw: '__$_raw'
 };
 
 export enum OprType {
@@ -33,7 +34,8 @@ export const watchable = <T>(target: T, belongInfo?: any): T => {
 
   const __$_private = {
     isObservableObj: true,
-    parents: []
+    parents: [],
+    raw: target,
   };
   if (belongInfo) {
     __$_private.parents.push(belongInfo);

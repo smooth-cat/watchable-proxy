@@ -198,6 +198,19 @@ watch(p, watcher);
 setProp(p, 'value', 10, { noTriggerWatcher: true });
 ```
 
+## specific getter
+
+```typescript
+const p = watchable({ a: { value: 10 } });
+
+const { a } = p;
+// get raw object of a
+// often used to get raw object which created by system class
+a['__$_raw']             
+a['__$_parents']         // get "[p]"
+a['__$_isObservableObj'] // get "true"
+```
+
 ## "this" of an function property
 
 #### "this" of array's method
