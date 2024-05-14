@@ -100,6 +100,21 @@ proxy.a.b.c = 20; // fn1 called
 proxy.a.b.d = 30; // fn1 called
 ```
 
+## batch cancel watch
+
+```typescript
+const scope = new Scope();
+const p = watchable({ a: 10 });
+function fn1() { }
+function fn2() { }
+scope.watch(p, fn1);
+scope.watch(p, fn2);
+p.a = 20; // fn1, fn2 called
+
+scope.dispose();
+p.a = 30; // fn1, fn2 won't call
+```
+
 ## watch share and watch pass
 
 ```typescript
@@ -250,3 +265,4 @@ getSum(1) // return 11
 const b = { value: 20 };
 getSum.call(b, 1); // return 21
 ```
+

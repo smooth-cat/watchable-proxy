@@ -343,6 +343,20 @@ class SetAction {
   }
 }
 
+export class Scope {
+  watch: IWatch = ((...args: any[]) => {
+    // @ts-ignore
+    const dispose = _watch(...args);
+    this.disposes.push(dispose);
+  }) as any
+  
+  private disposes: Function[] = [];
+  dispose() {
+    this.disposes.forEach(v => v());
+    this.disposes = [];
+  }
+}
+
 // const a: any = {
 //   b: {
 //     c: {},

@@ -1,4 +1,4 @@
-import { watchable, watch, watchMap, hasOwn, setProp } from './index';
+import { watchable, watch, watchMap, hasOwn, setProp, Scope } from './index';
 
 type IParentItem = {
   parent: any;
@@ -412,11 +412,11 @@ describe('circular ref', () => {
       paths: ['a', 'b', 'd'],
       type: 'SET'
     });
-  });  
+  });
 });
 
 describe('setProp api', () => {
-    /**
+  /**
    * a -> b -> c -> a(循环引用)
    *      | -> d
    */
@@ -445,11 +445,10 @@ describe('setProp api', () => {
 
   it('set base type prop', () => {
     const p = watchable({ a: 10 });
-    const fn =  jest.fn()
-    watch(p, (props) => {
-      fn(props)
-    })
-
+    const fn = jest.fn();
+    watch(p, props => {
+      fn(props);
+    });
 
     setProp(p, 'a', 20);
     expect(fn).toHaveBeenCalledWith({
@@ -459,15 +458,14 @@ describe('setProp api', () => {
       paths: ['a'],
       type: 'SET'
     });
-  })
+  });
 
   it('set raw object which has no proxy', () => {
     const p = watchable<any>({ a: 10 });
-    const fn1 =  jest.fn()
-    watch(p, 'a',(props) =>  fn1(props))
+    const fn1 = jest.fn();
+    watch(p, 'a', props => fn1(props));
 
-
-    const rawObj = { b: 20 }
+    const rawObj = { b: 20 };
     setProp(p, 'a', rawObj);
     expect(fn1).toHaveBeenCalledWith({
       matchedIndex: 0,
@@ -479,9 +477,9 @@ describe('setProp api', () => {
       type: 'SET'
     });
 
-    const fn2 =  jest.fn()
-    
-    watch(p, 'a.b', (props) => fn2(props));
+    const fn2 = jest.fn();
+
+    watch(p, 'a.b', props => fn2(props));
     rawObj.b = 40;
     // 设置原对象代理对象不会触发 watcher
     expect(fn2).toHaveBeenCalledTimes(0);
@@ -495,13 +493,12 @@ describe('setProp api', () => {
       paths: ['a', 'b'],
       type: 'SET'
     });
-  })
+  });
 
   it('set raw object which has a proxy', () => {
     const p = watchable<any>({ a: 10 });
-    const fn1 =  jest.fn()
-    watch(p, 'a',(props) =>  fn1(props))
-
+    const fn1 = jest.fn();
+    watch(p, 'a', props => fn1(props));
 
     const rawObj = { b: 20 };
     const obj = watchable(rawObj);
@@ -515,13 +512,13 @@ describe('setProp api', () => {
       paths: ['a'],
       type: 'SET'
     });
-  })
-})
+  });
+});
 
 class NormalClass {
-  value= 10;
+  value = 10;
   getSum(v: number = 0) {
-    return this.value + v
+    return this.value + v;
   }
 }
 
@@ -534,26 +531,26 @@ describe('function this point', () => {
     const getSum = p.getSum;
 
     // 使用了高阶函数做执行，相当于在高阶函数中调用 a.getValue()
-    expect(getSum()).toBe(10)
+    expect(getSum()).toBe(10);
   });
 
   it('normal class proxy use call or apply', () => {
     const a = new NormalClass();
 
-    const obj = { value: 20 }
+    const obj = { value: 20 };
 
     const p = watchable(a);
 
     const getSum = p.getSum;
     // 使用了高阶函数做执行，相当于在高阶函数中调用 a.getValue()
-    expect(getSum.call(obj, 1)).toBe(21)
-    expect(getSum.apply(obj, [2])).toBe(22)
-  })
-  
+    expect(getSum.call(obj, 1)).toBe(21);
+    expect(getSum.apply(obj, [2])).toBe(22);
+  });
+
   it('normal class proxy use bind', () => {
     const a = new NormalClass();
 
-    const obj = { value: 20 }
+    const obj = { value: 20 };
 
     const p = watchable(a);
 
@@ -561,6 +558,24 @@ describe('function this point', () => {
     getSum.bind(obj);
 
     // 使用了高阶函数做执行，相当于在高阶函数中调用 a.getValue()
-    expect(getSum(3)).toBe(23)
-  })
-})
+    expect(getSum(3)).toBe(23);
+  });
+});
+
+describe('use scope', () => {
+  it('use scope to batch cancel watch', () => {
+    const scope = new Scope();
+    const p = watchable({ a: 10 });
+    const fn1 = jest.fn();
+    const fn2 = jest.fn();
+    scope.watch(p, fn1);
+    scope.watch(p, fn2);
+    p.a = 20;
+    expect(fn1).toHaveBeenCalledTimes(1);
+    expect(fn2).toHaveBeenCalledTimes(1);
+    scope.dispose();
+    p.a = 30;
+    expect(fn1).toHaveBeenCalledTimes(1);
+    expect(fn2).toHaveBeenCalledTimes(1);
+  });
+});
