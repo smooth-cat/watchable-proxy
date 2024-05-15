@@ -345,15 +345,27 @@ class SetAction {
 
 export class Scope {
   watch: IWatch = ((...args: any[]) => {
+    if(this.disabled) return () => {};
     // @ts-ignore
     const dispose = _watch(...args);
     this.disposes.push(dispose);
+    return dispose;
   }) as any
   
+  disabled = false;
+
   private disposes: Function[] = [];
+
+  /** dispose current watchers */
   dispose() {
     this.disposes.forEach(v => v());
     this.disposes = [];
+  }
+
+  /** dispose current watchers and make subsequent watcher invalid */
+  destroy() {
+    this.dispose();
+    this.disabled = true;
   }
 }
 

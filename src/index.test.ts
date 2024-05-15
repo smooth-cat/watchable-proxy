@@ -563,19 +563,45 @@ describe('function this point', () => {
 });
 
 describe('use scope', () => {
-  it('use scope to batch cancel watch', () => {
+  it('cancel watchers by dispose', () => {
     const scope = new Scope();
     const p = watchable({ a: 10 });
     const fn1 = jest.fn();
     const fn2 = jest.fn();
     scope.watch(p, fn1);
-    scope.watch(p, fn2);
     p.a = 20;
     expect(fn1).toHaveBeenCalledTimes(1);
-    expect(fn2).toHaveBeenCalledTimes(1);
     scope.dispose();
+    // dispose 取消了 fn1 的监听，但后续监听的 fn2 仍然有效
+    scope.watch(p, fn2);
     p.a = 30;
     expect(fn1).toHaveBeenCalledTimes(1);
     expect(fn2).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancel watchers by destroy', () => {
+    const scope = new Scope();
+    const p = watchable({ a: 10 });
+    const fn1 = jest.fn();
+    const fn2 = jest.fn();
+    scope.watch(p, fn1);
+    p.a = 20;
+    expect(fn1).toHaveBeenCalledTimes(1);
+    scope.destroy();
+    // destroy 取消了 fn1 的监听并阻止后续监听
+    const eptFn = scope.watch(p, fn2);
+    p.a = 30;
+    expect(fn1).toHaveBeenCalledTimes(1);
+    expect(fn2).toHaveBeenCalledTimes(0);
+  });
+
+  it('correct empty function in destroy case', () => {
+    const scope = new Scope();
+    const p = watchable({ a: 10 });
+    const fn1 = jest.fn();
+    scope.destroy();
+    const eptFn = scope.watch(p, fn1);
+    expect(typeof eptFn).toBe('function');
+    eptFn();
   });
 });
