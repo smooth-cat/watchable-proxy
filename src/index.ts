@@ -80,18 +80,46 @@ const createSetter = __$_private => {
 
     const oldVal = target[key];
     const type = hasOwn(target, key) ? OprType.SET : OprType.ADD;
-    if (!action?.noTriggerWatcher) {
+
+    const triggerWatcher = !action?.noTriggerWatcher
+    if (triggerWatcher) {
       loopParent([key], receiver, oldVal, value, type);
     }
     const res = Reflect.set(target, key, value, receiver);
-    afterSetFns.forEach(v => v());
-    afterSetFns.clear();
+    // 不触发 loopParent 收集回调，那么也对应不触发回调函数的执行
+    if (triggerWatcher) {
+      afterSetFns.exec()
+    }
     // console.log('set', { target, key, value, receiver });
     return res;
   };
 };
 
-const afterSetFns = new Set<Function>();
+class AfterSetFns extends Array<Function> {
+  // constructor() {
+  //   super();
+  // }
+
+  isExecuting = false;
+
+  exec() {
+    if(this.isExecuting) return;
+    this.isExecuting = true;
+    while (1) {
+      const len = this.length;
+      if(len === 0) {
+        this.isExecuting = false;
+        return;
+      }
+      const fn = this.shift();
+      fn();
+    }
+  }
+}
+
+/** @deprecated */
+export const afterSetFns = new AfterSetFns();
+
 /** 增删改时触发向上回溯所有父代理对象，触发对应 watcher */
 function loopParent(paths, parent, oldVal, newVal, type, walkedParent = new Set()) {
   // 处理该 parent 节点
@@ -102,7 +130,8 @@ function loopParent(paths, parent, oldVal, newVal, type, walkedParent = new Set(
     watchSet.forEach(fn => {
       const afterSetFn = fn({ path: paths.join('.'), paths: [...paths], oldVal, newVal, type });
       if (getType(afterSetFn) === 'Function') {
-        afterSetFns.add(afterSetFn);
+        // TODO: 考虑嵌套 set 顺序问题，如 ASet 触发 A1 A2 回调，A1 触发 BSet， B1 回调需要等到 A2 执行完成后才会被执行
+        afterSetFns.push(afterSetFn);
       }
     });
   }
@@ -206,8 +235,7 @@ function deleteProperty(target, key) {
 
   loopParent([key], receiver, target[key], undefined, OprType.DEL);
   const res = Reflect.deleteProperty(target, key);
-  afterSetFns.forEach(v => v());
-  afterSetFns.clear();
+  afterSetFns.exec();
   return res;
 }
 
@@ -324,14 +352,14 @@ class SetAction {
   static is = (v: any) => v instanceof SetAction;
   value: any;
   constructor(value, opt) {
+    for (const key in opt) {
+      this[key] = opt[key]
+    }
+
     // 非对象则直接让 value 等于原始值
     if (!isObject(value)) {
       this.value = value;
       return;
-    }
-
-    for (const key in opt) {
-      this[key] = opt[key]
     }
 
     const valueIsWatchable = isObservable(value);
@@ -369,25 +397,16 @@ export class Scope {
   }
 }
 
-// const a: any = {
-//   b: {
-//     c: {},
-//     d: 'd'
-//   }
-// };
-// const aProxy = watchable<any>(a);
-// // 使用 pureRef 避免循环引用的对象的 父对象触发 watcher
-// setProp(aProxy.b.c, 'a', aProxy, {
-//   withoutWatchTrain: true
-// });
-// watch(aProxy, props => {
-//   console.log('aProxy', props);
+// const a = watchable({ value: 10 });
+// const b = watchable({ value: 10 });
+
+// watch(a, ({ newVal }) => {
+//   return () => {
+//     setProp(b, 'value', newVal, { noTriggerWatcher: true });
+//   };
 // });
 
-// // 使用赋值方式后
-// const cTemp = aProxy.b.c;
-// watch(cTemp, props => {
-//   console.log('cTemp', props);
+// watch(b, (props) => {
 // });
 
-// aProxy.b.d = 'joker';
+// a.value = 20;

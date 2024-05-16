@@ -1,4 +1,4 @@
-import { watchable, watch, watchMap, hasOwn, setProp, Scope } from './index';
+import { watchable, watch, watchMap, hasOwn, setProp, Scope, afterSetFns } from './index';
 
 type IParentItem = {
   parent: any;
@@ -603,5 +603,57 @@ describe('use scope', () => {
     const eptFn = scope.watch(p, fn1);
     expect(typeof eptFn).toBe('function');
     eptFn();
+  });
+});
+
+describe('nest set', () => {
+  it('nest set use assignment expression', () => {
+    const a = watchable({ value: 10 });
+    const b = watchable({ value: 10 });
+    const bWatcher = jest.fn();
+    const bCallback = jest.fn();
+
+    watch(a, ({ newVal }) => {
+      return () => {
+        b.value = newVal;
+        expect(bWatcher).toHaveBeenCalledTimes(1);
+        expect(bCallback).toHaveBeenCalledTimes(0);
+        // aCallback 在执行时已从队列中取出，bCallback 处于队首位置
+        expect(afterSetFns.length).toBe(1);
+        expect(afterSetFns[0]).toBe(bCallback);
+      };
+    });
+
+    watch(b, () => {
+      bWatcher();
+      return bCallback;
+    });
+
+    a.value = 20;
+    expect(b.value).toBe(20);
+  });
+
+  it('nest set use noTriggerWatcher', () => {
+    const a = watchable({ value: 10 });
+    const b = watchable({ value: 10 });
+    const bWatcher = jest.fn();
+    const bCallback = jest.fn();
+
+    watch(a, ({ newVal }) => {
+      return () => {
+        setProp(b, 'value', newVal, { noTriggerWatcher: true });
+        expect(bWatcher).toHaveBeenCalledTimes(0)
+        expect(bCallback).toHaveBeenCalledTimes(0);
+        expect(afterSetFns.length).toBe(0);
+      };
+    });
+
+    watch(b, (props) => {
+      bWatcher(props);
+      return bCallback;
+    });
+
+    a.value = 20;
+    expect(b.value).toBe(20);
   });
 });
