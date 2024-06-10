@@ -1,0 +1,9 @@
+{
+  "matchedIndex": 0,
+  "matchedRule": "__$_batch",
+  "newVal": [{ "v": 2 }, { "v": 4 }, { "v": 6 }],
+  "oldVal": [{ "v": 1 }, { "v": 2 }, { "v": 3 }],
+  "path": "__$_batch",
+  "paths": ["__$_batch"],
+  "type": "allDouble"
+}

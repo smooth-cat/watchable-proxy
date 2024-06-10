@@ -1,4 +1,7 @@
-import { watchable, watch, watchMap, hasOwn, setProp, Scope, afterSetFns } from './index';
+import { watchable, watch, setProp, Scope, batchSet, deleteProp } from './index';
+import { afterSetFns } from './var';
+import { hasOwn } from './util';
+import { BatchOpt } from './batch-action';
 
 type IParentItem = {
   parent: any;
@@ -218,22 +221,35 @@ describe('watch', () => {
   it('fuzzy match arr', () => {
     const p = createSampleProxy();
     const fn3 = jest.fn();
-    watch(p, ['arr.*n', 'arr.*n.**'], props => fn3(props));
-    p.arr.push(2); // fn3 called, match 'arr.*n'
-    expect(fn3).toHaveBeenCalledWith({
+    watch(p, ['arr.*n', 'arr.*n.**', 'arr.__$_batch'], ({...props}) => {
+      props.newVal = JSON.stringify(props.newVal)
+      props.oldVal = JSON.stringify(props.oldVal)
+      fn3(props)
+    });
+    p.arr.push(2); // fn3 called, match __$_batch
+    expect(fn3).toHaveBeenNthCalledWith(1, {
+      path: 'arr.__$_batch',
+      oldVal: JSON.stringify([{ foo: 0 }, 1]),
+      newVal: JSON.stringify([{ foo: 0 }, 1, 2]),
+      type: 'push',
+      paths: ['arr', '__$_batch'],
+      matchedIndex: 2,
+      matchedRule: 'arr.__$_batch'
+    });
+    p.arr[2] = 'baz'; // fn3 called
+    expect(fn3).toHaveBeenNthCalledWith(2, {
       path: 'arr.2',
-      oldVal: undefined,
-      newVal: 2,
-      type: 'ADD',
+      oldVal: '2',
+      newVal: "\"baz\"",
+      type: 'SET',
       paths: ['arr', '2'],
       matchedIndex: 0,
       matchedRule: 'arr.*n'
     });
-    p.arr[2] = 'baz'; // fn3 called
     delete p.arr[2]; // fn3 called
-    expect(fn3).toHaveBeenCalledWith({
+    expect(fn3).toHaveBeenNthCalledWith(3, {
       path: 'arr.2',
-      oldVal: 'baz',
+      oldVal: "\"baz\"",
       newVal: undefined,
       type: 'DEL',
       paths: ['arr', '2'],
@@ -515,6 +531,28 @@ describe('setProp api', () => {
   });
 });
 
+describe('deleteProp api',() => {
+  it('usage', () => {
+    const a  = watchable({b:10,c:20});
+    const fn = jest.fn();
+    watch(a, fn);
+    // 相当于 delete a.b
+    deleteProp(a, 'b');
+    expect(fn).toHaveBeenCalledTimes(1);
+  })
+
+  it('deleteProp without trigger watcher', () => {
+    const a  = watchable({b:10,c:20});
+    const fn = jest.fn();
+    watch(a,fn);
+
+    delete a.b;
+    expect(fn).toHaveBeenCalledTimes(1);
+    deleteProp(a, 'c', { noTriggerWatcher: true });
+    expect(fn).toHaveBeenCalledTimes(1);
+  })
+})
+
 class NormalClass {
   value = 10;
   getSum(v: number = 0) {
@@ -642,13 +680,13 @@ describe('nest set', () => {
     watch(a, ({ newVal }) => {
       return () => {
         setProp(b, 'value', newVal, { noTriggerWatcher: true });
-        expect(bWatcher).toHaveBeenCalledTimes(0)
+        expect(bWatcher).toHaveBeenCalledTimes(0);
         expect(bCallback).toHaveBeenCalledTimes(0);
         expect(afterSetFns.length).toBe(0);
       };
     });
 
-    watch(b, (props) => {
+    watch(b, props => {
       bWatcher(props);
       return bCallback;
     });
@@ -657,3 +695,4 @@ describe('nest set', () => {
     expect(b.value).toBe(20);
   });
 });
+

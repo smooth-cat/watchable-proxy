@@ -11,8 +11,7 @@ import { watchable, watch } form 'watchable-proxy';
 const proxy = watchable({
   a: {
     b: {
-      c: 10,
-      d: 'hello world',
+      c: 10
     }
   }
 });
@@ -25,7 +24,7 @@ const dispose = watch(proxy, ['a.b.c'], ({ path, oldVal, newVal, type, paths }) 
  		path,   // 'a.b.c'
     oldVal, // 10
     newVal, // 20
-    type,   // 'SET' (type includes 'SET' | 'ADD' | 'DEL' )
+    type,   // 'SET' (type includes 'SET' | 'ADD' | 'DEL' | batchName )
     paths,  // ['a', 'b', 'c']
     matchedIndex, // 0
     matchedRule,  // 'a.b.c'
@@ -33,8 +32,8 @@ const dispose = watch(proxy, ['a.b.c'], ({ path, oldVal, newVal, type, paths }) 
   
   console.log(proxy.a.b.c) // 10
   // the function  will called after set
+  // you can get the changed object
   return () => {
-    // you can get the modified object
     console.log(proxy.a.b.c) // 20
   }
 });
@@ -55,7 +54,6 @@ const proxy = watchable({
       d: 20,
     },
   },
-  arr: [{ foo: 0 }, 1]
 });
 
 // watch any prop of “b” change
@@ -70,13 +68,51 @@ function fn2() { }
 proxy.a.b.c = 30;   // fn2 called
 proxy.a.x = 30;     // fn2 called (type -> 'ADD')
 
-// watch any item of “arr” change
-watch(proxy, ['arr.*n', 'arr.*n.**'], fn3);
-function fn3() { }
-proxy.arr.push(2);       // fn3 called, match 'arr.*n'
-proxy.arr[2] = 'baz';    // fn3 called
-delete proxy.arr[2];     // fn3 called
-proxy.arr[0].foo = 'bar' // fn3 called, match 'arr.*n.**'
+```
+
+## watch array
+
+### fuzzy match array
+
+```typescript
+import { BATCH, BatchOpt } from 'watchable-proxy';
+// watch any set or delete of array
+const arr = watchable([ { foo: 0 }, 1 ]);
+function fn1() { }
+watch(arr, ['*n', '*n.**'], fn1);
+arr[1] = 'baz';    // fn1 called, match '*n'
+delete arr[1];     // fn1 called
+arr[0].foo = 'bar' // fn1 called, match '*n.**'
+```
+
+### watch array's in place method
+
+> [in place](https://zh.wikipedia.org/wiki/%E5%8E%9F%E5%9C%B0%E7%AE%97%E6%B3%95)
+
+```typescript
+// watch push method, 
+watch(arr, [BATCH], fn2);
+function fn2({
+	path,   // BATCH -> '__$_batch'
+	oldVal, // [{ foo: 0 }, 1] -> Array
+	newVal, // [{ foo: 0 }, 1, 2, 3] -> Proxy
+	type,   // 'push'
+	paths,  // [BATCH]
+	matchedIndex, // 0
+	matchedRule,  // BATCH
+}) { }
+arr.push(2, 3); // fn2 call 1 times
+
+// watch single set in push
+watch(arr, ['*n'], fn3);
+function fn3({}) {
+  // got below two set action from push
+  // 1. arr[2] = 2
+  // 2. arr[3] = 3
+}
+// fn3 call 2 times
+// in 'setter' way, BATCH watcher won't trigger
+arr.push(2, 3, BatchOpt({ triggerTarget: 'setter' })); 
 ```
 
 ## regexp match
@@ -89,7 +125,6 @@ const proxy = watchable({
       d: 20,
     },
   },
-  arr: [0, 1]
 });
 
 // if “/a\.b\.[^\.]+/.test(path)” is true , fn1 will be called
@@ -100,7 +135,7 @@ proxy.a.b.c = 20; // fn1 called
 proxy.a.b.d = 30; // fn1 called
 ```
 
-## batch cancel watch
+## [scope] api , batch cancel watch
 
 ```typescript
 const scope = new Scope();
@@ -114,6 +149,71 @@ p.a = 20; // fn1, fn2 called
 scope.dispose();
 p.a = 30; // fn1, fn2 won't call
 ```
+
+## [setProp] api , no trigger watchers single time
+
+```typescript
+const p = watchable({ value: 10 });
+
+function watcher() { }
+watch(p, watcher);
+
+// use noTriggerWatcher the watcher will no be trigger this time
+setProp(p, 'value', 10, { noTriggerWatcher: true });
+```
+
+## [batchSet] api , merge setters into a watchable batch
+
+> Notice❗️setProp Api's priority is higher than batchSet.
+> Means if an setProp invoke in batchSet，
+> whether setterWatcher will trigger depends on setProp.
+
+```typescript
+
+import { BATCH, batchSet } from 'watchable-proxy';
+const p = watchable({ 
+  value: 10, 
+  sub: {
+		str: 'foo',    
+  },
+});
+
+const handleP = batchSet(() => {
+  p.value = 20;
+  p.sub.str = 'baz';
+}, {
+  // in this function changes of p and p's subProp
+  // will be merged
+  proxies: [p]
+});
+
+function batchWatcher() { }
+watch(p, BATCH, batchWatcher);
+
+function setterWatcher() { }
+watch(p, ['value', 'sub.str'], setterWatcher);
+
+// batchWatcher call 1 times
+// setterWatcher call 0 times
+handleP();
+```
+
+## [cloneWatchable] and [cloneRaw] api
+
+```typescript
+const p = watchable({
+  a: 10,
+  b: { v: 20 }
+})
+
+// deepCone, got a new irrelevant proxy 
+const cloned = cloneWatchable(p);
+
+// deepCone, got a new irrelevant raw object 
+const clonedRaw = cloneRaw(p);
+```
+
+# "watchable proxy" specific
 
 ## watch share and watch pass
 
@@ -201,18 +301,6 @@ watch(c, cWatcher);
 a.b.c.d = 'joker';
 ```
 
-## setProp and no trigger watchers single time
-
-```typescript
-const p = watchable({ value: 10 });
-
-function watcher() { }
-watch(p, watcher);
-
-// use noTriggerWatcher the watcher will no be trigger this time
-setProp(p, 'value', 10, { noTriggerWatcher: true });
-```
-
 ## specific getter
 
 ```typescript
@@ -239,9 +327,9 @@ const arr =  watchable([0,1,2]);
 push = arr.push;
 
 function watcher() { }
-watch(arr, ['*n'], watcher);
+watch(arr, ['__$_batch'], watcher);
 
-// watcher can be triggerd
+// watcher can be triggered
 push(3);
 ```
 
