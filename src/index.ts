@@ -53,7 +53,6 @@ export const watchable = <T>(target: T, belongInfo?: any): DeepExtendArray<T> =>
 /*------------------------ setter ------------------------*/
 const createSetter = __$_private => {
   return function (target, key, rawValue, receiver) {
-    
     const action = SetAction.is(rawValue) ? rawValue : null;
     const value = action ? action.value : rawValue;
 
@@ -239,7 +238,7 @@ const _watch = (watchableObj, p1, p2) => {
     const lastKey = keys[keys.length - 1];
     const lastPath = paths[paths.length - 1];
     // __$_batch 不可被模糊匹配
-    return lastKey !== BATCH && lastKey !== '__\\$_batch' && lastPath === BATCH
+    return lastKey !== BATCH && lastKey !== '__\\$_batch' && lastPath === BATCH;
   }
 
   const wrappedFn = props => {
@@ -393,4 +392,4 @@ export class Scope {
   }
 }
 
-export const cloneWatchable = useCloneWatchable(watchable)
+export const cloneWatchable = useCloneWatchable(watchable);

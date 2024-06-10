@@ -143,9 +143,9 @@ type ReWriteMethods<R> = {
 };
 
 export type ExtendMethods<T> = {
-  filterSelf(callback: (item: T, i: number, arr: T[]) => any, conf?: IBatchSetOption): T[];
-  mapSelf<R>(callback: (item: T, i: number, arr: T[]) => R, conf?: IBatchSetOption): R[];
-  sliceSelf(start: number, end?: number | IBatchSetOption, conf?: IBatchSetOption): T[];
+  filterSelf?: (callback: (item: T, i: number, arr: T[]) => any, conf?: IBatchSetOption) => T[];
+  mapSelf?: <R>(callback: (item: T, i: number, arr: T[]) => R, conf?: IBatchSetOption) => R[];
+  sliceSelf?: (start: number, end?: number | IBatchSetOption, conf?: IBatchSetOption) => T[];
 };
 
 export type DeepExtendArray<T> = T extends Function | undefined | null

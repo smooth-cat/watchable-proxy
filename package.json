@@ -1,6 +1,6 @@
 {
   "name": "watchable-proxy",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "main": "dist/watchable-proxy.cjs.js",
   "module": "dist/watchable-proxy.esm.js",
   "browser": "dist/watchable-proxy.umd.js",
