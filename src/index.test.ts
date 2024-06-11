@@ -44,6 +44,13 @@ describe('watchable', () => {
     expect(proxy.b).toBe(30);
   });
 
+  it('set self, parents still will be one', () => {
+    const proxy = watchable<any>({ a: {b:10} });
+    const a = proxy.a;
+    proxy.a = a;
+    expect(a['__$_parents'].length).toBe(1); 
+  });
+
   it('delete', () => {
     const proxy = watchable({ a: 10 });
     delete proxy.a;

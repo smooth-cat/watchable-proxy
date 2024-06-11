@@ -58,10 +58,13 @@ const createSetter = __$_private => {
 
     // 非 withoutWatchTrain 则需要收集 parent
     if (isObservable(value) && !action?.withoutWatchTrain) {
-      value.__$_private.parents.push({
-        parent: receiver,
-        key
-      });
+      const hasParent = value.__$_private.parents.find(it => it.key === key && it.parent === receiver);
+      if (!hasParent) {
+        value.__$_private.parents.push({
+          parent: receiver,
+          key
+        });
+      }
     }
 
     const oldValProxy = receiver[key];

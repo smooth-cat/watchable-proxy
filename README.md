@@ -87,7 +87,7 @@ arr[0].foo = 'bar' // fn1 called, match '*n.**'
 
 ### watch array's in place method
 
-> [in place](https://zh.wikipedia.org/wiki/%E5%8E%9F%E5%9C%B0%E7%AE%97%E6%B3%95)
+> We give additional [in place](https://zh.wikipedia.org/wiki/%E5%8E%9F%E5%9C%B0%E7%AE%97%E6%B3%95) methods：[filterSelf] , [mapSelf] , [sliceSelf]
 
 ```typescript
 // watch push method, 
@@ -135,7 +135,7 @@ proxy.a.b.c = 20; // fn1 called
 proxy.a.b.d = 30; // fn1 called
 ```
 
-## [scope] api , batch cancel watch
+## [Scope] api , batch cancel watch
 
 ```typescript
 const scope = new Scope();
