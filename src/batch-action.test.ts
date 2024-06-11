@@ -1,4 +1,5 @@
 import { batchSet, watch, watchable, BatchOpt, BATCH } from './index';
+import { isObservable } from './util';
 
 describe('batch-action', () => {
   function createObj() {
@@ -149,6 +150,16 @@ describe('batch-action', () => {
       expect(newVal.a).toBe('baz');
     })
     obj.handleA()
+  })
+
+  it('test raw value has proxy ref', () => {
+    const item = watchable({v:1});
+    const arr = watchable([item, {v:2}]);
+    watch(arr, ({ oldVal, newVal }) => {
+      expect(isObservable(oldVal[0])).toBe(false);
+      expect(isObservable(newVal[0])).toBe(true);
+    })
+    arr.sliceSelf(0,1,BatchOpt({ needDeepClone: true }));
   })
 });
 

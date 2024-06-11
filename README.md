@@ -75,7 +75,6 @@ proxy.a.x = 30;     // fn2 called (type -> 'ADD')
 ### fuzzy match array
 
 ```typescript
-import { BATCH, BatchOpt } from 'watchable-proxy';
 // watch any set or delete of array
 const arr = watchable([ { foo: 0 }, 1 ]);
 function fn1() { }
@@ -90,6 +89,7 @@ arr[0].foo = 'bar' // fn1 called, match '*n.**'
 > We give additional [in place](https://zh.wikipedia.org/wiki/%E5%8E%9F%E5%9C%B0%E7%AE%97%E6%B3%95) methods：[filterSelf] , [mapSelf] , [sliceSelf]
 
 ```typescript
+import { BATCH, BatchOpt } from 'watchable-proxy';
 // watch push method, 
 watch(arr, [BATCH], fn2);
 function fn2({
@@ -314,7 +314,7 @@ a['__$_parents']         // get "[p]"
 a['__$_isObservableObj'] // get "true"
 ```
 
-## "this" of an function property
+## "this" of a function property
 
 #### "this" of array's method
 
@@ -333,7 +333,7 @@ watch(arr, ['__$_batch'], watcher);
 push(3);
 ```
 
-#### "this" of function belongs to an literal object or instance of a class
+#### "this" of function belongs to a literal object or instance of a class
 
 ```typescript
 class A {

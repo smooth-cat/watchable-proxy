@@ -51,6 +51,24 @@ describe('watchable', () => {
     expect(a['__$_parents'].length).toBe(1); 
   });
 
+  it('make sure parent train not break, while ref raw sub object', () => {
+
+    const raw = {v:3, info: { audio: true }}
+
+    const rawInfo = raw.info;
+
+    const obj = watchable<any>(raw);
+
+    // 旧版本会导致 rawInfo 和 ProxyInfo 比较，判断不相等使得代理对象的 parent 被消除
+    // 新版本在 setValue 时会及时将其转化为 proxy 从而避免问题
+    obj.info = rawInfo
+
+    const item = obj.info.__$_parents[0]
+
+    expect(item.key).toBe('info');
+    expect(item.parent).toBe(obj);
+  })
+
   it('delete', () => {
     const proxy = watchable({ a: 10 });
     delete proxy.a;

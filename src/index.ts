@@ -1,5 +1,5 @@
 import { DeepExtendArray, createArrayMethods } from './array-methods';
-import { batchMap, batchSet } from './batch-action';
+import { BatchOpt, batchMap, batchSet } from './batch-action';
 import { useCloneWatchable } from './clone';
 import { getType, hasOwn, isObject, isObservable, loopParent } from './util';
 import { BATCH, OprType, PrivateKeys, afterSetFns, targetToProxy, watchMap } from './var';
@@ -10,8 +10,9 @@ export { BATCH } from './var';
 const arrayMethods = createArrayMethods();
 
 export const watchable = <T>(target: T, belongInfo?: any): DeepExtendArray<T> => {
-  // target 就是代理对象
-  if (target[PrivateKeys.__$_isObservableObj]) {
+  // 1. target 不是对象
+  // 2. target 就是代理对象
+  if (!isObject(target) || target[PrivateKeys.__$_isObservableObj]) {
     return target as any;
   }
 
@@ -52,12 +53,17 @@ export const watchable = <T>(target: T, belongInfo?: any): DeepExtendArray<T> =>
 };
 /*------------------------ setter ------------------------*/
 const createSetter = __$_private => {
-  return function (target, key, rawValue, receiver) {
-    const action = SetAction.is(rawValue) ? rawValue : null;
-    const value = action ? action.value : rawValue;
+  return function (target, key, valueParam, receiver) {
+    const isSetPropApi = SetAction.is(valueParam);
+    const action = isSetPropApi ? valueParam : new SetAction(valueParam, DefaultSetPropOpt);
+    // 这个 value 已经被 proxy 化了(基础类型除外)
+    const value = action.value;
+    const isValueProxy = isObservable(value);
+    // 设值值时应该使用原始值，这样 __$_raw 对象的任何引用都是原始值，TODO: 除非初始化时用户使用了 proxy 对象作为 watchable 的如参
+    const rawValue = isValueProxy ? value.__$_raw : value;
 
     // 非 withoutWatchTrain 则需要收集 parent
-    if (isObservable(value) && !action?.withoutWatchTrain) {
+    if (isValueProxy && !action.withoutWatchTrain) {
       const hasParent = value.__$_private.parents.find(it => it.key === key && it.parent === receiver);
       if (!hasParent) {
         value.__$_private.parents.push({
@@ -67,6 +73,7 @@ const createSetter = __$_private => {
       }
     }
 
+    // 这里会进 getter proxy 化的
     const oldValProxy = receiver[key];
     // 如果原 value 是属于 本代理对象 的 子代理对象，但新值不是该子代理对象，则说明 子代理对象已经不再处于父对象的监听范围之内，其 parent 移除
     if (isObservable(oldValProxy)) {
@@ -80,11 +87,11 @@ const createSetter = __$_private => {
     const type = hasOwn(target, key) ? OprType.SET : OprType.ADD;
 
     // 优先考虑 action 再考虑 batch
-    const triggerWatcher = action ? !action.noTriggerWatcher : batchMap.shouldTriggerSingleWatcher(receiver);
+    const triggerWatcher = isSetPropApi ? !action.noTriggerWatcher : batchMap.shouldTriggerSingleWatcher(receiver);
     if (triggerWatcher) {
       loopParent([key], receiver, oldVal, value, type);
     }
-    const res = Reflect.set(target, key, value, receiver);
+    const res = Reflect.set(target, key, rawValue, receiver);
     // 不触发 loopParent 收集回调，那么也对应不触发回调函数的执行
     if (triggerWatcher) {
       afterSetFns.exec();
@@ -299,37 +306,28 @@ const _watch = (watchableObj, p1, p2) => {
 export const watch: IWatch = _watch as any;
 
 /*----------------- setProp Api -----------------*/
-const DefaultPureRefOpt = {
+const DefaultSetPropOpt = {
   noTriggerWatcher: false,
   withoutWatchTrain: false
 };
-type IPureRefOpt = Partial<typeof DefaultPureRefOpt>;
-export function setProp<T>(proxy: T, key: string | number, value: any, opt: IPureRefOpt = {}) {
-  opt = { ...DefaultPureRefOpt, ...opt };
+type ISetPropOpt = Partial<typeof DefaultSetPropOpt>;
+export function setProp<T>(proxy: T, key: string | number, value: any, opt: ISetPropOpt = {}) {
+  opt = { ...DefaultSetPropOpt, ...opt };
   const action = new SetAction(value, opt);
   proxy[key] = action;
 
   return true;
 }
-class SetAction {
-  static is = (v: any) => v instanceof SetAction;
+class SetAction implements ISetPropOpt {
+  noTriggerWatcher: boolean;
+  withoutWatchTrain: boolean;
+  static is = (v: any): v is SetAction => v instanceof SetAction;
   value: any;
-  constructor(value, opt) {
+  constructor(value: any, opt: ISetPropOpt) {
     for (const key in opt) {
       this[key] = opt[key];
     }
-
-    // 非对象则直接让 value 等于原始值
-    if (!isObject(value)) {
-      this.value = value;
-      return;
-    }
-
-    const valueIsWatchable = isObservable(value);
-    const existingProxy = targetToProxy.get(value);
-
-    // 这里需要主动把非 proxy 转为 proxy 不然在 get 时转换会出现赋值 parent 的情况
-    const proxyValue = valueIsWatchable ? value : existingProxy ?? watchable(value);
+    const proxyValue = watchable(value);
     this.value = proxyValue;
   }
 }
