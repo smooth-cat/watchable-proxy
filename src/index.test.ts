@@ -1,4 +1,4 @@
-import { watchable, watch, setProp, Scope, batchSet, deleteProp } from './index';
+import { watchable, watch, setProp, Scope, batchSet, deleteProp, watchGet } from './index';
 import { afterSetFns } from './var';
 import { hasOwn } from './util';
 import { BatchOpt } from './batch-action';
@@ -392,6 +392,20 @@ describe('watch transfer', () => {
     expect(fn2).toHaveBeenCalled();
   });
 });
+
+describe('watch getter', () => {
+  it('normal watch', () => {
+    const proxy = watchable({ a: 10, b: { c: 'foo' } });
+    const fn = jest.fn();
+    watchGet(proxy, ({ path, newVal }) => {
+      fn({ path, newVal });
+    })
+    proxy.a = 20;
+    expect(fn).toHaveBeenCalledTimes(0);
+    const ha = proxy.a;
+    expect(fn).toHaveBeenCalledWith({ path: 'a', newVal: 20 });
+  })
+})
 
 describe('circular ref', () => {
   /**

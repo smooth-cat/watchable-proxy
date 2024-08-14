@@ -11,7 +11,6 @@ function indexParse(i: number, len: number) {
   return i;
 }
 
-// TODO: 完成剩余 Array 原地方法的重写
 export const createArrayMethods = () => {
   const EXTEND_METHODS = {
     filterSelf: batchSet(

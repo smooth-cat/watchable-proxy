@@ -1,4 +1,4 @@
-import { PrivateKeys, afterSetFns, watchMap } from "./var";
+import { OprType, PrivateKeys, afterSetFns, getterWatchMap, watchMap } from "./var";
 
 export const getType = a => {
   return Object.prototype.toString.call(a).slice(8, -1);
@@ -10,17 +10,18 @@ export const isObject = val => val !== null && typeof val === 'object';
 
 export const isObservable = val => isObject(val) && Boolean(val[PrivateKeys.__$_isObservableObj]);
 
-/** 增删改时触发向上回溯所有父代理对象，触发对应 watcher */
+/** 
+ * TODO: 解决性能优化问题，如何快速在图中找到当前 proxy 到达 proxy 监听列表中 每个点的路径，这样比漫无目的的逐层向上寻找来得简单
+ * 增删改时触发向上回溯所有父代理对象，触发对应 watcher */
 export function loopParent(paths, parent, oldVal, newVal, type, walkedParent = new Set()) {
   // 处理该 parent 节点
-
-  const watchSet = watchMap.get(parent) || new Set();
+  const map = type !== OprType.GET ? watchMap : getterWatchMap;
+  const watchSet = map.get(parent) || new Set();
   const isWatched = watchSet.size > 0;
   if (isWatched) {
     watchSet.forEach(fn => {
       const afterSetFn = fn({ path: paths.join('.'), paths: [...paths], oldVal, newVal, type });
       if (typeof afterSetFn === 'function') {
-        // TODO: 考虑嵌套 set 顺序问题，如 ASet 触发 A1 A2 回调，A1 触发 BSet， B1 回调需要等到 A2 执行完成后才会被执行
         afterSetFns.push(afterSetFn);
       }
     });

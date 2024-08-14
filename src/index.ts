@@ -2,7 +2,17 @@ import { DeepExtendArray, createArrayMethods } from './array-methods';
 import { BatchOpt, batchMap, batchSet } from './batch-action';
 import { useCloneWatchable } from './clone';
 import { getType, hasOwn, isObject, isObservable, loopParent } from './util';
-import { BATCH, OprType, PrivateKeys, afterSetFns, targetToProxy, watchMap } from './var';
+import {
+  BATCH,
+  OprType,
+  PrivateKeys,
+  afterSetFns,
+  getVar,
+  getterWatchMap,
+  setVar,
+  targetToProxy,
+  watchMap
+} from './var';
 export { cloneRaw } from './clone';
 export { batchSet, BatchOpt, IBatchSetOption, IBatchCtx } from './batch-action';
 export { BATCH } from './var';
@@ -54,6 +64,7 @@ export const watchable = <T>(target: T, belongInfo?: any): DeepExtendArray<T> =>
 /*------------------------ setter ------------------------*/
 const createSetter = __$_private => {
   return function (target, key, valueParam, receiver) {
+    
     const isSetPropApi = SetAction.is(valueParam);
     const action = isSetPropApi ? valueParam : new SetAction(valueParam, DefaultSetPropOpt);
     // 这个 value 已经被 proxy 化了(基础类型除外)
@@ -74,7 +85,9 @@ const createSetter = __$_private => {
     }
 
     // 这里会进 getter proxy 化的
+    setVar('banWatchGet', true);
     const oldValProxy = receiver[key];
+    setVar('banWatchGet', false);
     // 如果原 value 是属于 本代理对象 的 子代理对象，但新值不是该子代理对象，则说明 子代理对象已经不再处于父对象的监听范围之内，其 parent 移除
     if (isObservable(oldValProxy)) {
       const foundReceiverIndex = oldValProxy.__$_private.parents.find(it => it.key === key && it.parent === receiver);
@@ -121,7 +134,9 @@ const createGetter = __$_private => {
     if (typeof value === 'function') {
       return createRewriteFn(target, key, value, receiver);
     }
-
+    if (!getVar('banWatchGet') && getVar('enableGet')) {
+      loopParent([key], receiver, target[key], target[key], OprType.GET);
+    }
     // 值还是一个对象就返回一个代理对象, receiver 代表父代理对象
     if (isObject(value)) {
       const childProxy = watchable(value, { parent: receiver, key });
@@ -171,7 +186,9 @@ function deleteProperty(target, key) {
 
   const receiver = targetToProxy.get(target);
 
+  setVar('banWatchGet', true);
   const oldValProxy = receiver[key];
+  setVar('banWatchGet', false);
   // 如果原 value 是属于 本代理对象 的 子代理对象，则使用 delete 关键字会让其不再属于 父对象的监听范围
   if (isObservable(oldValProxy)) {
     const foundReceiverIndex = oldValProxy.__$_private.parents.find(it => it.key === key && it.parent === receiver);
@@ -217,7 +234,7 @@ export interface IWatch {
   ): () => void;
 }
 
-const _watch = (watchableObj, p1, p2) => {
+const _watch = (watchableObj, type: 'set' | 'get', p1, p2) => {
   const p1Type = getType(p1);
   let cond;
   let fn;
@@ -235,9 +252,10 @@ const _watch = (watchableObj, p1, p2) => {
       fn = p1;
       break;
   }
+  const map = type === 'set' ? watchMap : getterWatchMap;
 
-  const watchSet = watchMap.get(watchableObj) || new Set();
-  watchMap.set(watchableObj, watchSet);
+  const watchSet = map.get(watchableObj) || new Set();
+  map.set(watchableObj, watchSet);
   // 取消订阅的方法
   const dispose = () => {
     watchSet.delete(wrappedFn);
@@ -303,7 +321,12 @@ const _watch = (watchableObj, p1, p2) => {
 
   return dispose;
 };
-export const watch: IWatch = _watch as any;
+export const watch: IWatch = ((watchableObj, p1, p2) => _watch(watchableObj, 'set', p1, p2)) as any;
+
+export const watchGet: IWatch = ((watchableObj, p1, p2) => {
+  setVar('enableGet', true);
+  return _watch(watchableObj, 'get', p1, p2);
+}) as any;
 
 /*----------------- setProp Api -----------------*/
 const DefaultSetPropOpt = {
@@ -371,7 +394,7 @@ export class Scope {
   watch: IWatch = ((...args: any[]) => {
     if (this.disabled) return () => {};
     // @ts-ignore
-    const dispose = _watch(...args);
+    const dispose = watch(...args);
     this.disposes.push(dispose);
     return dispose;
   }) as any;
@@ -394,3 +417,32 @@ export class Scope {
 }
 
 export const cloneWatchable = useCloneWatchable(watchable);
+
+// const proxy = watchable({ a: 10, b: { c: 'foo' } });
+
+// let fn;
+// const run = (fnn) => {
+//   fn = fnn;
+//   fnn();
+//   fn = null;
+// }
+
+// const fnMap = new Map<any, Set<Function>>();
+
+// watchGet(proxy, ({ path, newVal }) => {
+//   if(fn) {
+//     const fnSet = fnMap.get(proxy) || new Set();
+//     fnSet.add(fn);
+//     fnMap.set(proxy, fnSet);
+//   }
+// });
+
+// watch(proxy, ({ path, newVal }) => {
+//    return () => {
+//     const fnSet = fnMap.get(proxy) || new Set();
+//     fnSet.forEach((v) => v())
+//   }
+// });
+
+// run(() => { console.log('渲染a', proxy.a) });
+// proxy.a = 30;

@@ -44,6 +44,16 @@ proxy.a.b.c = 20;
 dispose();
 ```
 
+## watchGet
+
+```typescript
+const proxy = watchable({ a: 10, b: { c: 'foo' } });
+watchGet(proxy, ({ path }) => {
+  console.log('detect get', path) // 'a'
+})
+console.log(proxy.a) // 10
+```
+
 ## fuzzy match
 
 ```js
