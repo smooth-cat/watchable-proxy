@@ -39,7 +39,8 @@ describe('batch-action', () => {
       newVal: { a: 20, b: 40, c: 60 },
       path: '__$_batch',
       paths: ['__$_batch'],
-      type: 'allDouble'
+      type: 'allDouble',
+      target: obj,
     });
 
     expect(setterWatcher).toHaveBeenCalledTimes(0);
@@ -73,7 +74,8 @@ describe('batch-action', () => {
       newVal: JSON.stringify([{ v: 2 }, { v: 4 }, { v: 6 }]),
       path: '__$_batch',
       paths: ['__$_batch'],
-      type: 'allDouble'
+      type: 'allDouble',
+      target: arr,
     });
   });
 

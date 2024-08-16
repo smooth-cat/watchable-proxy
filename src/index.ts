@@ -102,7 +102,7 @@ const createSetter = __$_private => {
     // 优先考虑 action 再考虑 batch
     const triggerWatcher = isSetPropApi ? !action.noTriggerWatcher : batchMap.shouldTriggerSingleWatcher(receiver);
     if (triggerWatcher) {
-      loopParent([key], receiver, oldVal, value, type);
+      loopParent([key], receiver, oldVal, value, type, receiver);
     }
     const res = Reflect.set(target, key, rawValue, receiver);
     // 不触发 loopParent 收集回调，那么也对应不触发回调函数的执行
@@ -135,7 +135,7 @@ const createGetter = __$_private => {
       return createRewriteFn(target, key, value, receiver);
     }
     if (!getVar('banWatchGet') && getVar('enableGet')) {
-      loopParent([key], receiver, target[key], target[key], OprType.GET);
+      loopParent([key], receiver, target[key], target[key], OprType.GET, receiver);
     }
     // 值还是一个对象就返回一个代理对象, receiver 代表父代理对象
     if (isObject(value)) {
@@ -203,7 +203,7 @@ function deleteProperty(target, key) {
   // 优先考虑 action 再考虑 batch
   const triggerWatcher = action ? !action.noTriggerWatcher : batchMap.shouldTriggerSingleWatcher(receiver);
   if (triggerWatcher) {
-    loopParent([key], receiver, target[key], undefined, OprType.DEL);
+    loopParent([key], receiver, target[key], undefined, OprType.DEL, receiver);
   }
   const res = Reflect.deleteProperty(target, key);
   if (triggerWatcher) {

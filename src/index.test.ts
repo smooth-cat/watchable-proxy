@@ -117,7 +117,8 @@ describe('watch', () => {
       type: 'SET',
       paths: ['a', 'b', 'c'],
       matchedIndex: 0,
-      matchedRule: 'a.b.c'
+      matchedRule: 'a.b.c',
+      target: p.a.b,
     });
   });
 
@@ -201,7 +202,8 @@ describe('watch', () => {
       type: 'SET',
       paths: ['a', 'b', 'c'],
       matchedIndex: 0,
-      matchedRule: 'a.b.*'
+      matchedRule: 'a.b.*',
+      target: p.a.b,
     });
 
     p.a.b.e = 30;
@@ -212,7 +214,8 @@ describe('watch', () => {
       type: 'ADD',
       paths: ['a', 'b', 'e'],
       matchedIndex: 0,
-      matchedRule: 'a.b.*'
+      matchedRule: 'a.b.*',
+      target: p.a.b,
     });
   });
 
@@ -228,7 +231,8 @@ describe('watch', () => {
       type: 'SET',
       paths: ['a', 'b', 'c'],
       matchedIndex: 0,
-      matchedRule: 'a.**'
+      matchedRule: 'a.**',
+      target: p.a.b,
     });
 
     p.a.x = 30; // fn2 called (type -> 'ADD')
@@ -239,7 +243,8 @@ describe('watch', () => {
       type: 'ADD',
       paths: ['a', 'x'],
       matchedIndex: 0,
-      matchedRule: 'a.**'
+      matchedRule: 'a.**',
+      target: p.a,
     });
   });
 
@@ -259,7 +264,8 @@ describe('watch', () => {
       type: 'push',
       paths: ['arr', '__$_batch'],
       matchedIndex: 2,
-      matchedRule: 'arr.__$_batch'
+      matchedRule: 'arr.__$_batch',
+      target: p.arr,
     });
     p.arr[2] = 'baz'; // fn3 called
     expect(fn3).toHaveBeenNthCalledWith(2, {
@@ -269,7 +275,8 @@ describe('watch', () => {
       type: 'SET',
       paths: ['arr', '2'],
       matchedIndex: 0,
-      matchedRule: 'arr.*n'
+      matchedRule: 'arr.*n',
+      target: p.arr,
     });
     delete p.arr[2]; // fn3 called
     expect(fn3).toHaveBeenNthCalledWith(3, {
@@ -279,7 +286,8 @@ describe('watch', () => {
       type: 'DEL',
       paths: ['arr', '2'],
       matchedIndex: 0,
-      matchedRule: 'arr.*n'
+      matchedRule: 'arr.*n',
+      target: p.arr,
     });
     p.arr[0].foo = 'bar'; // fn3 called, match 'arr.*n.**'
     expect(fn3).toHaveBeenCalledTimes(4);
@@ -301,7 +309,8 @@ describe('watch', () => {
       type: 'ADD',
       paths: ['a', 'b', 'e'],
       matchedIndex: 0,
-      matchedRule: /a\.b\.[^\.]+/
+      matchedRule: /a\.b\.[^\.]+/,
+      target: p.a.b,
     });
   });
 });
@@ -465,7 +474,8 @@ describe('circular ref', () => {
       oldVal: 'd',
       path: 'a.b.d',
       paths: ['a', 'b', 'd'],
-      type: 'SET'
+      type: 'SET',
+      target: aProxy.b,
     });
   });
 });
@@ -511,7 +521,8 @@ describe('setProp api', () => {
       oldVal: 10,
       path: 'a',
       paths: ['a'],
-      type: 'SET'
+      type: 'SET',
+      target: p,
     });
   });
 
@@ -529,7 +540,8 @@ describe('setProp api', () => {
       oldVal: 10,
       path: 'a',
       paths: ['a'],
-      type: 'SET'
+      type: 'SET',
+      target: p,
     });
 
     const fn2 = jest.fn();
@@ -546,7 +558,8 @@ describe('setProp api', () => {
       oldVal: 40,
       path: 'a.b',
       paths: ['a', 'b'],
-      type: 'SET'
+      type: 'SET',
+      target: p.a,
     });
   });
 
@@ -565,7 +578,8 @@ describe('setProp api', () => {
       oldVal: 10,
       path: 'a',
       paths: ['a'],
-      type: 'SET'
+      type: 'SET',
+      target: p,
     });
   });
 });

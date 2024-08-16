@@ -27,7 +27,8 @@ const dispose = watch(proxy, ['a.b.c'], ({ path, oldVal, newVal, type, paths }) 
     type,   // 'SET' (type includes 'SET' | 'ADD' | 'DEL' | batchName )
     paths,  // ['a', 'b', 'c']
     matchedIndex, // 0
-    matchedRule,  // 'a.b.c'
+    matchedRule,  // 'a.b.c',
+    target, // the direct object triggering the set
   })
   
   console.log(proxy.a.b.c) // 10

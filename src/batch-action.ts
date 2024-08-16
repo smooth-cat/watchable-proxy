@@ -182,7 +182,7 @@ export function batchSet<T extends (...args) => any>(
 
     _proxies.forEach((p, i) => {
       const oldVal = oldValues[i];
-      loopParent([BATCH], p, oldVal, p.__$_raw, effectiveCtx.batchName ?? fn.name);
+      loopParent([BATCH], p, oldVal, p.__$_raw, effectiveCtx.batchName ?? fn.name, p);
     });
 
     afterSetFns.exec();
