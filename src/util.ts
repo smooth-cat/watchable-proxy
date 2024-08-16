@@ -13,14 +13,14 @@ export const isObservable = val => isObject(val) && Boolean(val[PrivateKeys.__$_
 /** 
  * TODO: 解决性能优化问题，如何快速在图中找到当前 proxy 到达 proxy 监听列表中 每个点的路径，这样比漫无目的的逐层向上寻找来得简单
  * 增删改时触发向上回溯所有父代理对象，触发对应 watcher */
-export function loopParent(paths, parent, oldVal, newVal, type, target, walkedParent = new Set()) {
+export function loopParent(paths, parent, oldVal, newVal, type, target, info: any, walkedParent = new Set()) {
   // 处理该 parent 节点
   const map = type !== OprType.GET ? watchMap : getterWatchMap;
   const watchSet = map.get(parent) || new Set();
   const isWatched = watchSet.size > 0;
   if (isWatched) {
     watchSet.forEach(fn => {
-      const afterSetFn = fn({ path: paths.join('.'), paths: [...paths], oldVal, newVal, type, target });
+      const afterSetFn = fn({ path: paths.join('.'), paths: [...paths], oldVal, newVal, type, target, info });
       if (typeof afterSetFn === 'function') {
         afterSetFns.push(afterSetFn);
       }
@@ -33,7 +33,7 @@ export function loopParent(paths, parent, oldVal, newVal, type, target, walkedPa
   const grandParents = parent[PrivateKeys.__$_parents].filter(it => !walkedParent.has(it.parent));
   if (grandParents.length) {
     grandParents.forEach(({ key, parent }) => {
-      loopParent([key, ...paths], parent, oldVal, newVal, type, target, walkedParent);
+      loopParent([key, ...paths], parent, oldVal, newVal, type, target, info, walkedParent);
     });
   }
 

@@ -161,7 +161,7 @@ scope.dispose();
 p.a = 30; // fn1, fn2 won't call
 ```
 
-## [setProp] api , no trigger watchers single time
+## [setProp] api , custom set action
 
 ```typescript
 const p = watchable({ value: 10 });
@@ -171,6 +171,13 @@ watch(p, watcher);
 
 // use noTriggerWatcher the watcher will no be trigger this time
 setProp(p, 'value', 10, { noTriggerWatcher: true });
+
+// use info options to pass info to watcher's props.info
+setProp(p, 'value', 10, { info: 'hello' });
+
+// use withoutWatchTrain make the parent watcher can't catch the value's props change
+const value = { a: 10 };
+setProp(p, 'value', value, { withoutWatchTrain: true });
 ```
 
 ## [batchSet] api , merge setters into a watchable batch

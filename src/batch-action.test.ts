@@ -163,6 +163,24 @@ describe('batch-action', () => {
     })
     arr.sliceSelf(0,1,BatchOpt({ needDeepClone: true }));
   })
+
+  it('batch with info', () => {
+    const obj = createObj();
+
+    const allD = batchSet(allDouble);
+
+    const batchWatcher = jest.fn();
+
+    watch(obj, BATCH, props => {
+      batchWatcher(props.info);
+    });
+  
+
+    allD(obj, BatchOpt({ proxies: [obj], info: 'hello' }));
+
+    expect(batchWatcher).toHaveBeenCalledWith('hello');
+
+  })
 });
 
 describe('nest batch', () => {

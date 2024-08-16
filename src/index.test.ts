@@ -582,6 +582,14 @@ describe('setProp api', () => {
       target: p,
     });
   });
+
+  it('set with info', () => {
+    const p = watchable<any>({ a: 10 });
+    const fn1 = jest.fn();
+    watch(p, 'a', props => fn1(props['info']));
+    setProp(p, 'a', 20, { info: 'hello' })
+    expect(fn1).toHaveBeenCalledWith('hello');
+  })
 });
 
 describe('deleteProp api',() => {
@@ -603,6 +611,15 @@ describe('deleteProp api',() => {
     expect(fn).toHaveBeenCalledTimes(1);
     deleteProp(a, 'c', { noTriggerWatcher: true });
     expect(fn).toHaveBeenCalledTimes(1);
+  })
+
+  it('delete with info', () => {
+    const a  = watchable({b:10,c:20});
+    const fn = jest.fn();
+    watch(a,(props) => fn(props.info));
+    // 相当于 delete a.b
+    deleteProp(a, 'b', { info: 'hello' });
+    expect(fn).toHaveBeenCalledWith('hello');
   })
 })
 

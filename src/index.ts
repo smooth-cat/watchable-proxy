@@ -102,7 +102,7 @@ const createSetter = __$_private => {
     // 优先考虑 action 再考虑 batch
     const triggerWatcher = isSetPropApi ? !action.noTriggerWatcher : batchMap.shouldTriggerSingleWatcher(receiver);
     if (triggerWatcher) {
-      loopParent([key], receiver, oldVal, value, type, receiver);
+      loopParent([key], receiver, oldVal, value, type, receiver, action.info);
     }
     const res = Reflect.set(target, key, rawValue, receiver);
     // 不触发 loopParent 收集回调，那么也对应不触发回调函数的执行
@@ -135,7 +135,7 @@ const createGetter = __$_private => {
       return createRewriteFn(target, key, value, receiver);
     }
     if (!getVar('banWatchGet') && getVar('enableGet')) {
-      loopParent([key], receiver, target[key], target[key], OprType.GET, receiver);
+      loopParent([key], receiver, target[key], target[key], OprType.GET, receiver, undefined);
     }
     // 值还是一个对象就返回一个代理对象, receiver 代表父代理对象
     if (isObject(value)) {
@@ -203,7 +203,7 @@ function deleteProperty(target, key) {
   // 优先考虑 action 再考虑 batch
   const triggerWatcher = action ? !action.noTriggerWatcher : batchMap.shouldTriggerSingleWatcher(receiver);
   if (triggerWatcher) {
-    loopParent([key], receiver, target[key], undefined, OprType.DEL, receiver);
+    loopParent([key], receiver, target[key], undefined, OprType.DEL, receiver, action?.info);
   }
   const res = Reflect.deleteProperty(target, key);
   if (triggerWatcher) {
@@ -222,6 +222,8 @@ export type IWatchCallback = (
     type: OprType | string;
     matchedIndex: number;
     matchedRule: string | RegExp;
+    target: any;
+    info: any;
   },
   dispose: () => void
 ) => any;
@@ -331,7 +333,8 @@ export const watchGet: IWatch = ((watchableObj, p1, p2) => {
 /*----------------- setProp Api -----------------*/
 const DefaultSetPropOpt = {
   noTriggerWatcher: false,
-  withoutWatchTrain: false
+  withoutWatchTrain: false,
+  info: undefined,
 };
 type ISetPropOpt = Partial<typeof DefaultSetPropOpt>;
 export function setProp<T>(proxy: T, key: string | number, value: any, opt: ISetPropOpt = {}) {
@@ -344,6 +347,7 @@ export function setProp<T>(proxy: T, key: string | number, value: any, opt: ISet
 class SetAction implements ISetPropOpt {
   noTriggerWatcher: boolean;
   withoutWatchTrain: boolean;
+  info: any;
   static is = (v: any): v is SetAction => v instanceof SetAction;
   value: any;
   constructor(value: any, opt: ISetPropOpt) {
@@ -356,7 +360,8 @@ class SetAction implements ISetPropOpt {
 }
 /*----------------- deleteProp Api -----------------*/
 const DefaultDeletePropOpt = {
-  noTriggerWatcher: false
+  noTriggerWatcher: false,
+  info: undefined,
 };
 type IDeletePropAction = Partial<typeof DefaultDeletePropOpt>;
 
@@ -418,31 +423,6 @@ export class Scope {
 
 export const cloneWatchable = useCloneWatchable(watchable);
 
-// const proxy = watchable({ a: 10, b: { c: 'foo' } });
-
-// let fn;
-// const run = (fnn) => {
-//   fn = fnn;
-//   fnn();
-//   fn = null;
-// }
-
-// const fnMap = new Map<any, Set<Function>>();
-
-// watchGet(proxy, ({ path, newVal }) => {
-//   if(fn) {
-//     const fnSet = fnMap.get(proxy) || new Set();
-//     fnSet.add(fn);
-//     fnMap.set(proxy, fnSet);
-//   }
-// });
-
-// watch(proxy, ({ path, newVal }) => {
-//    return () => {
-//     const fnSet = fnMap.get(proxy) || new Set();
-//     fnSet.forEach((v) => v())
-//   }
-// });
-
-// run(() => { console.log('渲染a', proxy.a) });
-// proxy.a = 30;
+// const p = watchable<any>({ a: 10 });
+// watch(p, 'a', props => console.log('info', props.info));
+// setProp(p, 'a', { info: 'hello' })

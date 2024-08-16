@@ -11,13 +11,15 @@ export type IBatchSetOption = {
   batchName?: string;
   proxies?: any[];
   ignoreUpperCtx?: boolean;
+  info?: any;
 };
 
 const DefaultBatchSetOption: IBatchSetOption = {
   triggerTarget: 'method',
   needDeepClone: false,
   proxies: [],
-  ignoreUpperCtx: false
+  ignoreUpperCtx: false,
+  info: undefined,
 };
 
 class BatchMap extends WeakMap<IBatchCtx, Set<any[]>> {
@@ -182,7 +184,7 @@ export function batchSet<T extends (...args) => any>(
 
     _proxies.forEach((p, i) => {
       const oldVal = oldValues[i];
-      loopParent([BATCH], p, oldVal, p.__$_raw, effectiveCtx.batchName ?? fn.name, p);
+      loopParent([BATCH], p, oldVal, p.__$_raw, effectiveCtx.batchName ?? fn.name, p, opt.info);
     });
 
     afterSetFns.exec();
