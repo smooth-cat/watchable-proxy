@@ -404,6 +404,14 @@ export class Scope {
     return dispose;
   }) as any;
 
+  watchGet: IWatch = ((...args: any[]) => {
+    if (this.disabled) return () => {};
+    // @ts-ignore
+    const dispose = watchGet(...args);
+    this.disposes.push(dispose);
+    return dispose;
+  }) as any;
+
   disabled = false;
 
   private disposes: Function[] = [];

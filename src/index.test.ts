@@ -692,15 +692,19 @@ describe('use scope', () => {
     const p = watchable({ a: 10 });
     const fn1 = jest.fn();
     const fn2 = jest.fn();
+    const fn3 = jest.fn();
     scope.watch(p, fn1);
     p.a = 20;
     expect(fn1).toHaveBeenCalledTimes(1);
     scope.destroy();
     // destroy 取消了 fn1 的监听并阻止后续监听
-    const eptFn = scope.watch(p, fn2);
+    scope.watch(p, fn2);
+    scope.watchGet(p, fn3);
     p.a = 30;
+    const _a = p.a;
     expect(fn1).toHaveBeenCalledTimes(1);
     expect(fn2).toHaveBeenCalledTimes(0);
+    expect(fn3).toHaveBeenCalledTimes(0);
   });
 
   it('correct empty function in destroy case', () => {
@@ -712,6 +716,24 @@ describe('use scope', () => {
     expect(typeof eptFn).toBe('function');
     eptFn();
   });
+
+  it('watch and watchGet', () => {
+    const scope = new Scope();
+    const p = watchable({ a: 10 });
+    const fn1 = jest.fn();
+    const fn2 = jest.fn();
+    scope.watch(p, fn1);
+    scope.watchGet(p, fn2);
+    p.a = 20;
+    const _a1 = p.a
+    expect(fn1).toHaveBeenCalledTimes(1);
+    expect(fn2).toHaveBeenCalledTimes(1);
+    scope.dispose();
+    p.a = 30;
+    const _a2 = p.a
+    expect(fn1).toHaveBeenCalledTimes(1);
+    expect(fn2).toHaveBeenCalledTimes(1);
+  })
 });
 
 describe('nest set', () => {
